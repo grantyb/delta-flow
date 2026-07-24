@@ -36,8 +36,22 @@
       {
         "command": "gitDirDiff.openDiff",
         "title": "Open Diff"
+      },
+      {
+        "command": "gitDirDiff.openExternal",
+        "title": "Open in External App",
+        "category": "Git Directory Diff"
       }
     ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "gitDirDiff.openExternal",
+          "when": "view == gitDirDiff.changes && viewItem == file",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Git Directory Diff",
       "properties": {

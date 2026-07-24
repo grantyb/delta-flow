@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { ChangeEntry, ChangeSet } from './changeModel';
 import { DiffContentProvider, SCHEME } from './contentProvider';
 import { DiffView } from './diffView';
-import { openDiff } from './diffCommand';
+import { openDiff, openExternalEntry } from './diffCommand';
+import { TreeNode } from './fileTree';
 import { loadChanges } from './gitDiff';
 import { DiffSession, readSession } from './session';
 
@@ -23,7 +24,9 @@ function registerContentProvider(context: vscode.ExtensionContext): void {
 
 function registerOpenCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitDirDiff.openDiff', (entry: ChangeEntry) => openDiff(entry)));
+    vscode.commands.registerCommand('gitDirDiff.openDiff', (entry: ChangeEntry) => openDiff(entry)),
+    vscode.commands.registerCommand('gitDirDiff.openExternal', (node: TreeNode) =>
+      node?.entry ? openExternalEntry(node.entry) : undefined));
 }
 
 async function showChanges(context: vscode.ExtensionContext, session: DiffSession): Promise<void> {
