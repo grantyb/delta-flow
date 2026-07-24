@@ -36,7 +36,9 @@ function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView
   context.subscriptions.push(
     vscode.commands.registerCommand('gitDirDiff.setFilter', () =>
       promptFilter(view.patterns, (value) => view.setFilter(value))),
-    vscode.commands.registerCommand('gitDirDiff.clearFilters', () => view.clearFilters()));
+    vscode.commands.registerCommand('gitDirDiff.clearFilters', () => view.clearFilters()),
+    vscode.commands.registerCommand('gitDirDiff.collapseAll', () => view.collapseAll()),
+    vscode.commands.registerCommand('gitDirDiff.expandAll', () => view.expandAll()));
 }
 
 async function promptFilter(current: string, apply: (value: string) => void): Promise<void> {

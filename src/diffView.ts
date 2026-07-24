@@ -1,21 +1,25 @@
 import * as vscode from 'vscode';
 import { ChangeSet } from './changeModel';
 import { PathFilter } from './filter';
+import { TreeNode } from './fileTree';
 import { ChangesTreeProvider } from './treeProvider';
 
 /** Owns the sidebar tree, its provider, the active filter, and their display states. */
 export class DiffView {
   private readonly provider = new ChangesTreeProvider();
-  private readonly view: vscode.TreeView<unknown>;
+  private readonly view: vscode.TreeView<TreeNode>;
   private changes = new ChangeSet([]);
   private filter = new PathFilter();
 
   constructor() {
     this.view = vscode.window.createTreeView('gitDirDiff.changes', {
       treeDataProvider: this.provider,
-      showCollapseAll: true,
+      showCollapseAll: false,
     });
     this.view.message = 'Loading changes…';
+    // Expanding a folder means the tree is no longer fully collapsed.
+    this.view.onDidExpandElement(() => this.setCollapsedContext(false));
+    this.setCollapsedContext(false);
   }
 
   get patterns(): string {
@@ -37,6 +41,16 @@ export class DiffView {
     this.render();
   }
 
+  collapseAll(): void {
+    this.provider.setCollapsed(true);
+    this.setCollapsedContext(true);
+  }
+
+  expandAll(): void {
+    this.provider.setCollapsed(false);
+    this.setCollapsedContext(false);
+  }
+
   dispose(): void {
     this.view.dispose();
   }
@@ -56,5 +70,10 @@ export class DiffView {
       return 'No files match the current filter.';
     }
     return undefined;
+  }
+
+  /** Drives which of the Collapse All / Expand All title buttons is shown. */
+  private setCollapsedContext(collapsed: boolean): void {
+    void vscode.commands.executeCommand('setContext', 'gitDirDiff.collapsed', collapsed);
   }
 }
