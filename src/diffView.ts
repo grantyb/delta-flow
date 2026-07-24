@@ -17,7 +17,7 @@ export class DiffView {
   private visible = new ChangeSet([]);
   private filter = new PathFilter();
   private pendingOpen?: ReturnType<typeof setTimeout>;
-  private suppressOpenOnce = false;
+  private currentFile?: TreeNode;
 
   constructor() {
     this.view = vscode.window.createTreeView('gitDirDiff.changes', {
@@ -26,7 +26,7 @@ export class DiffView {
     });
     this.view.message = 'Loading changes…';
     this.disposables.push(
-      // Selection fires for both clicks and cursor-key navigation.
+      // Clicks change selection directly; cursor keys are handled by next/prev.
       this.view.onDidChangeSelection((e) => this.onSelectionChanged(e.selection)),
       // Expanding a folder means the tree is no longer fully collapsed.
       this.view.onDidExpandElement(() => this.setCollapsedContext(false)));
@@ -39,17 +39,18 @@ export class DiffView {
 
   populate(changes: ChangeSet): void {
     this.changes = changes;
-    this.apply();
+    this.render();
+    this.autoOpenSingle();
   }
 
   setFilter(patterns: string): void {
     this.filter = new PathFilter(patterns);
-    this.apply();
+    this.render();
   }
 
   clearFilters(): void {
     this.filter = new PathFilter();
-    this.apply();
+    this.render();
   }
 
   collapseAll(): void {
@@ -62,26 +63,50 @@ export class DiffView {
     this.setCollapsedContext(false);
   }
 
+  selectNext(): void {
+    void this.step(1);
+  }
+
+  selectPrevious(): void {
+    void this.step(-1);
+  }
+
   dispose(): void {
     this.cancelPendingOpen();
     this.disposables.forEach((d) => d.dispose());
     this.view.dispose();
   }
 
-  /** Loads a file's diff when it becomes selected, debounced for held cursor keys. */
+  /** Clicking a file selects it directly; load its diff (debounced). */
   private onSelectionChanged(selection: readonly TreeNode[]): void {
-    this.cancelPendingOpen();
-    if (this.suppressOpenOnce) {
-      this.suppressOpenOnce = false;
-      return; // The seeded selection shouldn't auto-open a multi-file changeset.
-    }
     const node = selection[0];
     if (node?.kind === 'file' && node.entry) {
+      this.currentFile = node;
+      this.scheduleOpen(node.entry);
+    }
+  }
+
+  /** Moves selection to the next/previous file and loads its diff. */
+  private async step(delta: number): Promise<void> {
+    const files = this.provider.orderedFiles();
+    if (files.length === 0) {
+      return;
+    }
+    const current = this.currentFile ? files.indexOf(this.currentFile) : -1;
+    const target = files[clamp(current + delta, 0, files.length - 1)];
+    await this.select(target);
+  }
+
+  private async select(node: TreeNode): Promise<void> {
+    this.currentFile = node;
+    await this.view.reveal(node, { select: true, focus: true });
+    if (node.entry) {
       this.scheduleOpen(node.entry);
     }
   }
 
   private scheduleOpen(entry: ChangeEntry): void {
+    this.cancelPendingOpen();
     this.pendingOpen = setTimeout(() => void openDiff(entry), OPEN_DEBOUNCE_MS);
   }
 
@@ -92,11 +117,6 @@ export class DiffView {
     }
   }
 
-  private apply(): void {
-    this.render();
-    void this.seedSelection();
-  }
-
   private render(): void {
     this.visible = new ChangeSet(this.changes.entries.filter((e) => this.filter.keep(e)));
     this.provider.setChanges(this.visible);
@@ -104,18 +124,12 @@ export class DiffView {
     this.view.message = this.messageFor(this.visible);
   }
 
-  /**
-   * Selects the first file so focus === selection; VS Code then moves selection
-   * with focus as you cursor (workbench.list.selectionFollowsFocus), loading each
-   * diff. Only auto-opens when a single file is shown.
-   */
-  private async seedSelection(): Promise<void> {
-    const first = this.provider.firstFile();
-    if (!first) {
-      return;
+  /** Open the diff automatically only when a single file changed. */
+  private autoOpenSingle(): void {
+    const files = this.provider.orderedFiles();
+    if (files.length === 1) {
+      void this.select(files[0]);
     }
-    this.suppressOpenOnce = this.visible.entries.length > 1;
-    await this.view.reveal(first, { select: true, focus: true });
   }
 
   private messageFor(filtered: ChangeSet): string | undefined {
@@ -132,4 +146,8 @@ export class DiffView {
   private setCollapsedContext(collapsed: boolean): void {
     void vscode.commands.executeCommand('setContext', 'gitDirDiff.collapsed', collapsed);
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

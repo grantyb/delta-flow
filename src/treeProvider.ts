@@ -53,22 +53,20 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     return this.parents.get(node);
   }
 
-  /** The first file in display order, used to seed the initial selection. */
-  firstFile(): TreeNode | undefined {
-    return this.findFirstFile(this.getChildren());
-  }
-
-  private findFirstFile(nodes: TreeNode[]): TreeNode | undefined {
-    for (const node of nodes) {
-      if (node.kind === 'file') {
-        return node;
+  /** All file nodes in display order, for cursor-key navigation. */
+  orderedFiles(): TreeNode[] {
+    const files: TreeNode[] = [];
+    const walk = (nodes: TreeNode[]): void => {
+      for (const node of nodes) {
+        if (node.kind === 'file') {
+          files.push(node);
+        } else {
+          walk(this.getChildren(node));
+        }
       }
-      const found = this.findFirstFile(this.getChildren(node));
-      if (found) {
-        return found;
-      }
-    }
-    return undefined;
+    };
+    walk(this.getChildren());
+    return files;
   }
 
   getTreeItem(node: TreeNode): vscode.TreeItem {

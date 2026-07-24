@@ -65,6 +65,28 @@
         "title": "Expand All",
         "category": "Git Directory Diff",
         "icon": "$(expand-all)"
+      },
+      {
+        "command": "gitDirDiff.next",
+        "title": "Next Changed File",
+        "category": "Git Directory Diff"
+      },
+      {
+        "command": "gitDirDiff.previous",
+        "title": "Previous Changed File",
+        "category": "Git Directory Diff"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "gitDirDiff.next",
+        "key": "down",
+        "when": "focusedView == gitDirDiff.changes"
+      },
+      {
+        "command": "gitDirDiff.previous",
+        "key": "up",
+        "when": "focusedView == gitDirDiff.changes"
       }
     ],
     "menus": {
