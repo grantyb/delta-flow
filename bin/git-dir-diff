@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# git difftool --dir-diff launcher for the Git Directory Diff VS Code extension.
+#
+# git invokes this once with the two temp trees:  git-dir-diff "$LOCAL" "$REMOTE"
+# We open a VS Code window whose workspace settings carry the two paths, then
+# block (via --wait) until the user closes it, so git keeps the temp trees alive.
+#
+# Configure the VS Code CLI with $GIT_DIR_DIFF_CODE if `code` is not on PATH.
+
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "usage: git-dir-diff <LEFT_DIR> <RIGHT_DIR>" >&2
+  exit 2
+fi
+
+code_bin="${GIT_DIR_DIFF_CODE:-code}"
+
+# Resolve to absolute paths — git may pass these relative to the repo root.
+left="$(cd "$1" && pwd)"
+right="$(cd "$2" && pwd)"
+
+workdir="$(mktemp -d "${TMPDIR:-/tmp}/git-dir-diff.XXXXXX")"
+workspace="$workdir/session.code-workspace"
+trap 'rm -rf "$workdir"' EXIT
+
+cat > "$workspace" <<EOF
+{
+  "folders": [],
+  "settings": {
+    "gitDirDiff.session": { "left": "$left", "right": "$right" }
+  }
+}
+EOF
+
+"$code_bin" --new-window --wait "$workspace"
