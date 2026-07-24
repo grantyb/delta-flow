@@ -97,6 +97,37 @@ export class DiffView {
     void this.step(-1);
   }
 
+  /** Left arrow: collapse an expanded folder, otherwise move to the parent. */
+  collapseOrParent(): void {
+    const node = this.current;
+    if (!node) {
+      return;
+    }
+    if (node.kind === 'folder' && !this.provider.isCollapsed(node)) {
+      this.provider.collapse(node);
+      void this.selectAndLoad(this.provider.nodeByPath(node.path) ?? node);
+    } else {
+      void this.selectParent(node);
+    }
+  }
+
+  /** Right arrow: expand a collapsed folder, otherwise move to its first child. */
+  expandOrChild(): void {
+    const node = this.current;
+    if (!node || node.kind !== 'folder') {
+      return;
+    }
+    if (this.provider.isCollapsed(node)) {
+      this.provider.expand(node);
+      void this.selectAndLoad(this.provider.nodeByPath(node.path) ?? node);
+    } else {
+      const child = this.provider.getChildren(node)[0];
+      if (child) {
+        void this.selectAndLoad(child);
+      }
+    }
+  }
+
   dispose(): void {
     this.loader.dispose();
     this.disposables.forEach((d) => d.dispose());
@@ -114,8 +145,25 @@ export class DiffView {
     if (rows.length === 0) {
       return;
     }
-    const index = this.current ? rows.indexOf(this.current) : -1;
-    await this.selectAndLoad(rows[clamp(index + delta, 0, rows.length - 1)]);
+    await this.selectAndLoad(rows[clamp(this.currentIndex(rows) + delta, 0, rows.length - 1)]);
+  }
+
+  /** Index of the cursor, falling back to the nearest visible ancestor. */
+  private currentIndex(rows: TreeNode[]): number {
+    for (let node = this.current; node; node = this.provider.getParent(node)) {
+      const index = rows.indexOf(node);
+      if (index >= 0) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  private async selectParent(node: TreeNode): Promise<void> {
+    const parent = this.provider.getParent(node);
+    if (parent) {
+      await this.selectAndLoad(parent);
+    }
   }
 
   private async selectAndLoad(node: TreeNode): Promise<void> {

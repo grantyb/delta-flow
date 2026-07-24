@@ -72,12 +72,44 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     return rows;
   }
 
+  isCollapsed(node: TreeNode): boolean {
+    return this.collapsedPaths.has(node.path);
+  }
+
+  /** Re-resolves a node by its stable path after a rebuild changed identities. */
+  nodeByPath(path: string): TreeNode | undefined {
+    const find = (nodes: TreeNode[]): TreeNode | undefined => {
+      for (const node of nodes) {
+        if (node.path === path) {
+          return node;
+        }
+        if (path.startsWith(`${node.path}/`)) {
+          return find(this.getChildren(node));
+        }
+      }
+      return undefined;
+    };
+    return find(this.getChildren());
+  }
+
+  // Mouse-driven expand/collapse: record state without a rebuild (VS Code already did it).
   onCollapsed(node: TreeNode): void {
     this.collapsedPaths.add(node.path);
   }
 
   onExpanded(node: TreeNode): void {
     this.collapsedPaths.delete(node.path);
+  }
+
+  // Keyboard-driven: rebuild so VS Code re-applies the forced collapse state.
+  collapse(node: TreeNode): void {
+    this.collapsedPaths.add(node.path);
+    this.rebuild();
+  }
+
+  expand(node: TreeNode): void {
+    this.collapsedPaths.delete(node.path);
+    this.rebuild();
   }
 
   collapseAll(): void {

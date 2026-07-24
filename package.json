@@ -91,6 +91,16 @@
         "when": "focusedView == gitDirDiff.changes"
       },
       {
+        "command": "gitDirDiff.collapseOrParent",
+        "key": "left",
+        "when": "focusedView == gitDirDiff.changes"
+      },
+      {
+        "command": "gitDirDiff.expandOrChild",
+        "key": "right",
+        "when": "focusedView == gitDirDiff.changes"
+      },
+      {
         "command": "gitDirDiff.setFilter",
         "key": "/",
         "when": "focusedView == gitDirDiff.changes"
