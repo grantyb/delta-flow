@@ -32,12 +32,17 @@ async function showChanges(context: vscode.ExtensionContext, session: DiffSessio
   await revealContainer();
   const changes = await loadChanges(session);
   view.populate(changes);
+  await revealContainer(); // Re-assert in case the startup layout restore stole focus.
   await openFirst(changes);
 }
 
 /** Bring our activity-bar container to the front so the diff view is what you see. */
-function revealContainer(): Thenable<unknown> {
-  return vscode.commands.executeCommand('workbench.view.extension.gitDirDiff');
+async function revealContainer(): Promise<void> {
+  try {
+    await vscode.commands.executeCommand('workbench.view.extension.gitDirDiff');
+  } catch {
+    // The container may not be ready during very early startup; a later call wins.
+  }
 }
 
 async function openFirst(changes: ChangeSet): Promise<void> {
