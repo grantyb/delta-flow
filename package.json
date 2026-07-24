@@ -41,9 +41,44 @@
         "command": "gitDirDiff.openExternal",
         "title": "Open in External App",
         "category": "Git Directory Diff"
+      },
+      {
+        "command": "gitDirDiff.setInclude",
+        "title": "Filter: Include Paths",
+        "category": "Git Directory Diff",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gitDirDiff.setExclude",
+        "title": "Filter: Exclude Paths",
+        "category": "Git Directory Diff",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "gitDirDiff.clearFilters",
+        "title": "Filter: Clear",
+        "category": "Git Directory Diff",
+        "icon": "$(clear-all)"
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "gitDirDiff.setInclude",
+          "when": "view == gitDirDiff.changes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitDirDiff.setExclude",
+          "when": "view == gitDirDiff.changes",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitDirDiff.clearFilters",
+          "when": "view == gitDirDiff.changes",
+          "group": "navigation@3"
+        }
+      ],
       "view/item/context": [
         {
           "command": "gitDirDiff.openExternal",

@@ -14,7 +14,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
   registerContentProvider(context);
   registerOpenCommand(context);
-  await showChanges(context, session);
+  const view = new DiffView();
+  context.subscriptions.push(view);
+  registerFilterCommands(context, view);
+  await run(view, session);
 }
 
 function registerContentProvider(context: vscode.ExtensionContext): void {
@@ -29,9 +32,28 @@ function registerOpenCommand(context: vscode.ExtensionContext): void {
       node?.entry ? openExternalEntry(node.entry) : undefined));
 }
 
-async function showChanges(context: vscode.ExtensionContext, session: DiffSession): Promise<void> {
-  const view = new DiffView();
-  context.subscriptions.push(view);
+function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitDirDiff.setInclude', () =>
+      promptFilter('Include', view.include, (value) => view.setInclude(value))),
+    vscode.commands.registerCommand('gitDirDiff.setExclude', () =>
+      promptFilter('Exclude', view.exclude, (value) => view.setExclude(value))),
+    vscode.commands.registerCommand('gitDirDiff.clearFilters', () => view.clearFilters()));
+}
+
+async function promptFilter(label: string, current: string, apply: (value: string) => void): Promise<void> {
+  const value = await vscode.window.showInputBox({
+    title: `${label} patterns`,
+    prompt: 'Comma-separated, e.g. **/target/**, *.java, AbstractFoo',
+    value: current,
+    ignoreFocusOut: true,
+  });
+  if (value !== undefined) {
+    apply(value);
+  }
+}
+
+async function run(view: DiffView, session: DiffSession): Promise<void> {
   await focusView();
   const changes = await loadChanges(session);
   view.populate(changes);
