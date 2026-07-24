@@ -7,6 +7,8 @@ export class TreeNode {
   readonly children = new Map<string, TreeNode>();
   /** Set only on file nodes. */
   entry?: ChangeEntry;
+  /** Assigned per rebuild; used to give each TreeItem a unique, generation-stamped id. */
+  uid = 0;
 
   constructor(public name: string, readonly kind: NodeKind) {}
 }

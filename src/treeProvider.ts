@@ -8,10 +8,21 @@ function compactFoldersEnabled(): boolean {
   return vscode.workspace.getConfiguration('explorer').get<boolean>('compactFolders', true);
 }
 
+/** Numbers every node so each TreeItem gets a unique id within a generation. */
+function assignUids(root: TreeNode): void {
+  let next = 0;
+  const walk = (node: TreeNode): void => {
+    node.uid = next++;
+    node.children.forEach(walk);
+  };
+  walk(root);
+}
+
 /** Feeds the folder hierarchy of changed files to the sidebar, expanded by default. */
 export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private entries: ChangeEntry[] = [];
   private collapsed = false;
+  private generation = 0;
   private root = new TreeNode('', 'folder');
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.changed.event;
@@ -33,11 +44,17 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   getTreeItem(node: TreeNode): vscode.TreeItem {
-    return node.kind === 'folder' ? this.folderItem(node) : this.fileItem(node);
+    const item = node.kind === 'folder' ? this.folderItem(node) : this.fileItem(node);
+    // A generation-stamped id makes VS Code treat items as new after a toggle,
+    // so it re-applies collapsibleState instead of preserving expansion state.
+    item.id = `${this.generation}:${node.uid}`;
+    return item;
   }
 
   private rebuild(): void {
+    this.generation++;
     this.root = buildTree(this.entries, compactFoldersEnabled());
+    assignUids(this.root);
     this.changed.fire();
   }
 
