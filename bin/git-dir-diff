@@ -51,6 +51,7 @@ open_dir_diff() {
   "settings": {
     "gitDirDiff.session": { "left": "$left", "right": "$right" },
     "workbench.startupEditor": "none",
+    "explorer.openEditors.visible": 0,
     "files.exclude": { "session.code-workspace": true }
   }
 }

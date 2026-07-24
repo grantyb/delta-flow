@@ -22,20 +22,12 @@
     }
   },
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "gitDirDiff",
-          "title": "Directory Diff",
-          "icon": "media/diff.svg"
-        }
-      ]
-    },
     "views": {
-      "gitDirDiff": [
+      "explorer": [
         {
           "id": "gitDirDiff.changes",
-          "name": "Changed Files"
+          "name": "Changed Files",
+          "visibility": "visible"
         }
       ]
     },

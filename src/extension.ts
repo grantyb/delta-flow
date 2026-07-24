@@ -29,19 +29,19 @@ function registerOpenCommand(context: vscode.ExtensionContext): void {
 async function showChanges(context: vscode.ExtensionContext, session: DiffSession): Promise<void> {
   const view = new DiffView();
   context.subscriptions.push(view);
-  await revealContainer();
+  await focusView();
   const changes = await loadChanges(session);
   view.populate(changes);
-  await revealContainer(); // Re-assert in case the startup layout restore stole focus.
+  await focusView(); // Re-assert in case the startup layout restore stole focus.
   await openFirst(changes);
 }
 
-/** Bring our activity-bar container to the front so the diff view is what you see. */
-async function revealContainer(): Promise<void> {
+/** Reveal and expand our Changed Files section within the Explorer viewlet. */
+async function focusView(): Promise<void> {
   try {
-    await vscode.commands.executeCommand('workbench.view.extension.gitDirDiff');
+    await vscode.commands.executeCommand('gitDirDiff.changes.focus');
   } catch {
-    // The container may not be ready during very early startup; a later call wins.
+    // The view may not be ready during very early startup; a later call wins.
   }
 }
 
