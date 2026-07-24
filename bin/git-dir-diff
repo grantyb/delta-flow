@@ -45,15 +45,17 @@ open_dir_diff() {
   # Expand $workdir now so cleanup works even though it is function-local.
   trap "rm -rf '$workdir'" EXIT
 
-  # No folders: keeps the Explorer clear of a scratch-folder section, leaving only
-  # our Changed Files view. --wait still holds the window until it is closed.
+  # A single empty named folder anchors the workspace (a zero-folder workspace
+  # shows a large "No Folder Opened" placeholder). The folder is empty and its
+  # workspace file is hidden, so the Explorer shows only our Changed Files view.
   cat > "$workspace" <<EOF
 {
-  "folders": [],
+  "folders": [{ "path": ".", "name": "Directory Diff" }],
   "settings": {
     "gitDirDiff.session": { "left": "$left", "right": "$right" },
     "workbench.startupEditor": "none",
-    "explorer.openEditors.visible": 0
+    "explorer.openEditors.visible": 0,
+    "files.exclude": { "session.code-workspace": true }
   }
 }
 EOF
