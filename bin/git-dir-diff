@@ -47,9 +47,11 @@ open_dir_diff() {
 
   cat > "$workspace" <<EOF
 {
-  "folders": [{ "path": "." }],
+  "folders": [{ "path": ".", "name": "Directory Diff" }],
   "settings": {
-    "gitDirDiff.session": { "left": "$left", "right": "$right" }
+    "gitDirDiff.session": { "left": "$left", "right": "$right" },
+    "workbench.startupEditor": "none",
+    "files.exclude": { "session.code-workspace": true }
   }
 }
 EOF

@@ -5,10 +5,14 @@ import { buildTree, TreeNode } from './fileTree';
 
 /** Feeds the folder hierarchy of changed files to the sidebar, expanded by default. */
 export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
-  private readonly root: TreeNode;
+  private root = new TreeNode('', 'folder');
+  private readonly changed = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.changed.event;
 
-  constructor(changes: ChangeSet) {
+  /** Populated once git finishes; fires a refresh so the tree re-renders. */
+  setChanges(changes: ChangeSet): void {
     this.root = buildTree(changes.entries);
+    this.changed.fire();
   }
 
   getChildren(node?: TreeNode): TreeNode[] {

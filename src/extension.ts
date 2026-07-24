@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import { ChangeEntry } from './changeModel';
+import { ChangeEntry, ChangeSet } from './changeModel';
 import { DiffContentProvider, SCHEME } from './contentProvider';
+import { DiffView } from './diffView';
 import { openDiff } from './diffCommand';
 import { loadChanges } from './gitDiff';
-import { readSession } from './session';
-import { ChangesTreeProvider } from './treeProvider';
+import { DiffSession, readSession } from './session';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const session = readSession();
@@ -26,12 +26,25 @@ function registerOpenCommand(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('gitDirDiff.openDiff', (entry: ChangeEntry) => openDiff(entry)));
 }
 
-async function showChanges(context: vscode.ExtensionContext, session: ReturnType<typeof readSession>): Promise<void> {
-  const changes = await loadChanges(session!);
-  const provider = new ChangesTreeProvider(changes);
-  context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('gitDirDiff.changes', provider));
-  await vscode.commands.executeCommand('gitDirDiff.changes.focus');
+async function showChanges(context: vscode.ExtensionContext, session: DiffSession): Promise<void> {
+  const view = new DiffView();
+  context.subscriptions.push(view);
+  await revealContainer();
+  const changes = await loadChanges(session);
+  view.populate(changes);
+  await openFirst(changes);
+}
+
+/** Bring our activity-bar container to the front so the diff view is what you see. */
+function revealContainer(): Thenable<unknown> {
+  return vscode.commands.executeCommand('workbench.view.extension.gitDirDiff');
+}
+
+async function openFirst(changes: ChangeSet): Promise<void> {
+  const first = changes.entries[0];
+  if (first) {
+    await openDiff(first);
+  }
 }
 
 export function deactivate(): void {
