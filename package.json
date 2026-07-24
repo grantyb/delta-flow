@@ -15,6 +15,12 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true,
+      "description": "Only diffs the two temporary trees git/Tower provide; never runs code from the workspace."
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
