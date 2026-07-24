@@ -112,6 +112,17 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     this.rebuild();
   }
 
+  // Recursive keyboard/menu actions: apply to a folder and all its descendants.
+  collapseSubtree(node: TreeNode): void {
+    this.subtreeFolderPaths(node).forEach((path) => this.collapsedPaths.add(path));
+    this.rebuild();
+  }
+
+  expandSubtree(node: TreeNode): void {
+    this.subtreeFolderPaths(node).forEach((path) => this.collapsedPaths.delete(path));
+    this.rebuild();
+  }
+
   collapseAll(): void {
     this.collapsedPaths = new Set(this.allFolderPaths());
     this.rebuild();
@@ -120,6 +131,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   expandAll(): void {
     this.collapsedPaths.clear();
     this.rebuild();
+  }
+
+  private subtreeFolderPaths(node: TreeNode): string[] {
+    const paths: string[] = [];
+    const walk = (current: TreeNode): void => {
+      if (current.kind === 'folder') {
+        paths.push(current.path);
+        current.children.forEach(walk);
+      }
+    };
+    walk(node);
+    return paths;
   }
 
   private rebuild(): void {

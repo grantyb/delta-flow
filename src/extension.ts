@@ -41,7 +41,9 @@ function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView
     vscode.commands.registerCommand('gitDirDiff.next', () => view.selectNext()),
     vscode.commands.registerCommand('gitDirDiff.previous', () => view.selectPrevious()),
     vscode.commands.registerCommand('gitDirDiff.collapseOrParent', () => view.collapseOrParent()),
-    vscode.commands.registerCommand('gitDirDiff.expandOrChild', () => view.expandOrChild()));
+    vscode.commands.registerCommand('gitDirDiff.expandOrChild', () => view.expandOrChild()),
+    vscode.commands.registerCommand('gitDirDiff.collapseSubtree', (node?: TreeNode) => view.collapseSubtree(node)),
+    vscode.commands.registerCommand('gitDirDiff.expandSubtree', (node?: TreeNode) => view.expandSubtree(node)));
 }
 
 async function promptFilter(current: string, apply: (value: string) => void): Promise<void> {

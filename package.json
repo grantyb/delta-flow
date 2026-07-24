@@ -77,6 +77,16 @@
         "command": "gitDirDiff.previous",
         "title": "Previous Changed File",
         "category": "Git Directory Diff"
+      },
+      {
+        "command": "gitDirDiff.expandSubtree",
+        "title": "Expand Folder Recursively",
+        "category": "Git Directory Diff"
+      },
+      {
+        "command": "gitDirDiff.collapseSubtree",
+        "title": "Collapse Folder Recursively",
+        "category": "Git Directory Diff"
       }
     ],
     "keybindings": [
@@ -98,6 +108,16 @@
       {
         "command": "gitDirDiff.expandOrChild",
         "key": "right",
+        "when": "focusedView == gitDirDiff.changes"
+      },
+      {
+        "command": "gitDirDiff.collapseSubtree",
+        "key": "shift+left",
+        "when": "focusedView == gitDirDiff.changes"
+      },
+      {
+        "command": "gitDirDiff.expandSubtree",
+        "key": "shift+right",
         "when": "focusedView == gitDirDiff.changes"
       },
       {
@@ -145,6 +165,16 @@
           "command": "gitDirDiff.openExternal",
           "when": "view == gitDirDiff.changes && viewItem == file",
           "group": "navigation"
+        },
+        {
+          "command": "gitDirDiff.expandSubtree",
+          "when": "view == gitDirDiff.changes && viewItem == folder",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitDirDiff.collapseSubtree",
+          "when": "view == gitDirDiff.changes && viewItem == folder",
+          "group": "navigation@2"
         }
       ]
     },

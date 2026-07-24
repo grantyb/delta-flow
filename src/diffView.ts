@@ -111,6 +111,22 @@ export class DiffView {
     }
   }
 
+  /** Recursively collapse a folder and all its descendants (menu passes the node). */
+  collapseSubtree(node = this.current): void {
+    if (node?.kind === 'folder') {
+      this.provider.collapseSubtree(node);
+      void this.selectAndLoad(this.provider.nodeByPath(node.path) ?? node);
+    }
+  }
+
+  /** Recursively expand a folder and all its descendants. */
+  expandSubtree(node = this.current): void {
+    if (node?.kind === 'folder') {
+      this.provider.expandSubtree(node);
+      void this.selectAndLoad(this.provider.nodeByPath(node.path) ?? node);
+    }
+  }
+
   /** Right arrow: expand a collapsed folder, otherwise move to its first child. */
   expandOrChild(): void {
     const node = this.current;
