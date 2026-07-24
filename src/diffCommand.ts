@@ -14,27 +14,30 @@ export async function openDiff(entry: ChangeEntry): Promise<void> {
   }
 }
 
+/** Keep focus in the tree so the user can keep navigating with the cursor keys. */
+const SHOW_OPTIONS = { preview: true, preserveFocus: true };
+
 async function openTextDiff(entry: ChangeEntry): Promise<void> {
   const left = contentUri('left', entry.oldPath ?? entry.path, entry.leftAbs);
   const right = contentUri('right', entry.path, entry.rightAbs);
-  await vscode.commands.executeCommand('vscode.diff', left, right, diffTitle(entry), { preview: true });
+  await vscode.commands.executeCommand('vscode.diff', left, right, diffTitle(entry), SHOW_OPTIONS);
 }
 
 /** Lets VS Code's built-in image diff render both sides; a lone side opens directly. */
 async function openImage(entry: ChangeEntry): Promise<void> {
   if (entry.leftAbs && entry.rightAbs) {
     await vscode.commands.executeCommand('vscode.diff',
-      vscode.Uri.file(entry.leftAbs), vscode.Uri.file(entry.rightAbs), diffTitle(entry), { preview: true });
+      vscode.Uri.file(entry.leftAbs), vscode.Uri.file(entry.rightAbs), diffTitle(entry), SHOW_OPTIONS);
     return;
   }
   const only = entry.rightAbs ?? entry.leftAbs;
   if (only) {
-    await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(only), { preview: true });
+    await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(only), SHOW_OPTIONS);
   }
 }
 
 async function openBinary(entry: ChangeEntry): Promise<void> {
-  await vscode.window.showTextDocument(messageUri(entry), { preview: true });
+  await vscode.window.showTextDocument(messageUri(entry), SHOW_OPTIONS);
   void offerExternal(entry);
 }
 
