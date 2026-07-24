@@ -13,7 +13,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
   registerContentProvider(context);
   registerItemCommands(context);
-  const view = new DiffView();
+  const view = new DiffView(session);
   context.subscriptions.push(view);
   registerFilterCommands(context, view);
   await run(view, session);
@@ -34,6 +34,7 @@ function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView
   context.subscriptions.push(
     vscode.commands.registerCommand('gitDirDiff.setFilter', () =>
       promptFilter(view.patterns, (value) => view.setFilter(value))),
+    vscode.commands.registerCommand('gitDirDiff.searchChanges', () => promptSearch(view)),
     vscode.commands.registerCommand('gitDirDiff.clearFilters', () => view.clearFilters()),
     vscode.commands.registerCommand('gitDirDiff.collapseAll', () => view.collapseAll()),
     vscode.commands.registerCommand('gitDirDiff.expandAll', () => view.expandAll()),
@@ -50,6 +51,18 @@ async function promptFilter(current: string, apply: (value: string) => void): Pr
   });
   if (value !== undefined) {
     apply(value);
+  }
+}
+
+async function promptSearch(view: DiffView): Promise<void> {
+  const value = await vscode.window.showInputBox({
+    title: 'Search changes',
+    prompt: 'Regex matched against added/removed lines (git -G). Empty to clear.',
+    value: view.searchText,
+    ignoreFocusOut: true,
+  });
+  if (value !== undefined) {
+    await view.setSearch(value);
   }
 }
 

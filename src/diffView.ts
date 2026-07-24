@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
-import { ChangeSet } from './changeModel';
+import { ChangeEntry, ChangeSet } from './changeModel';
 import { DiffLoader } from './diffLoader';
 import { PathFilter } from './filter';
 import { TreeNode } from './fileTree';
+import { matchingPaths } from './gitDiff';
+import { DiffSession } from './session';
 import { ChangesTreeProvider } from './treeProvider';
 
 /** Throttle window for loading diffs while navigating. */
@@ -17,9 +19,11 @@ export class DiffView {
   private changes = new ChangeSet([]);
   private visible = new ChangeSet([]);
   private filter = new PathFilter();
+  private search = '';
+  private searchMatches?: Set<string>;
   private current?: TreeNode;
 
-  constructor() {
+  constructor(private readonly session: DiffSession) {
     this.view = vscode.window.createTreeView('gitDirDiff.changes', {
       treeDataProvider: this.provider,
       showCollapseAll: false,
@@ -36,6 +40,10 @@ export class DiffView {
     return this.filter.patterns;
   }
 
+  get searchText(): string {
+    return this.search;
+  }
+
   populate(changes: ChangeSet): void {
     this.changes = changes;
     this.render();
@@ -49,6 +57,25 @@ export class DiffView {
 
   clearFilters(): void {
     this.filter = new PathFilter();
+    this.search = '';
+    this.searchMatches = undefined;
+    this.render();
+  }
+
+  /** Restricts the tree to files whose changed lines match the pickaxe regex. */
+  async setSearch(pattern: string): Promise<void> {
+    this.search = pattern.trim();
+    if (!this.search) {
+      this.searchMatches = undefined;
+      this.render();
+      return;
+    }
+    try {
+      this.searchMatches = await matchingPaths(this.session, this.search);
+    } catch {
+      void vscode.window.showWarningMessage(`Invalid change search: ${this.search}`);
+      return;
+    }
     this.render();
   }
 
@@ -111,10 +138,33 @@ export class DiffView {
   }
 
   private render(): void {
-    this.visible = new ChangeSet(this.changes.entries.filter((e) => this.filter.keep(e)));
+    this.visible = new ChangeSet(this.changes.entries.filter((e) => this.keep(e)));
     this.provider.setChanges(this.visible);
-    this.view.description = this.filter.isActive ? this.filter.summary() : undefined;
+    this.view.description = this.describeFilters();
     this.view.message = this.messageFor(this.visible);
+  }
+
+  private keep(entry: ChangeEntry): boolean {
+    return this.filter.keep(entry) && this.matchesSearch(entry);
+  }
+
+  private matchesSearch(entry: ChangeEntry): boolean {
+    if (!this.searchMatches) {
+      return true;
+    }
+    return this.searchMatches.has(entry.path) ||
+      (entry.oldPath !== undefined && this.searchMatches.has(entry.oldPath));
+  }
+
+  private describeFilters(): string | undefined {
+    const parts: string[] = [];
+    if (this.filter.isActive) {
+      parts.push(this.filter.summary());
+    }
+    if (this.search) {
+      parts.push(`search: ${this.search}`);
+    }
+    return parts.length > 0 ? parts.join('  ·  ') : undefined;
   }
 
   /** Open the diff automatically only when a single file changed. */
@@ -130,7 +180,7 @@ export class DiffView {
       return 'No changes found.';
     }
     if (filtered.isEmpty) {
-      return 'No files match the current filter.';
+      return 'No files match the current filter or search.';
     }
     return undefined;
   }

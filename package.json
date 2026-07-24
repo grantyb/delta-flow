@@ -45,6 +45,12 @@
         "icon": "$(filter)"
       },
       {
+        "command": "gitDirDiff.searchChanges",
+        "title": "Search Changes",
+        "category": "Git Directory Diff",
+        "icon": "$(search)"
+      },
+      {
         "command": "gitDirDiff.clearFilters",
         "title": "Filter: Clear",
         "category": "Git Directory Diff",
@@ -88,6 +94,12 @@
         "command": "gitDirDiff.setFilter",
         "key": "/",
         "when": "focusedView == gitDirDiff.changes"
+      },
+      {
+        "command": "gitDirDiff.searchChanges",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "focusedView == gitDirDiff.changes"
       }
     ],
     "menus": {
@@ -98,9 +110,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "gitDirDiff.clearFilters",
+          "command": "gitDirDiff.searchChanges",
           "when": "view == gitDirDiff.changes",
           "group": "navigation@2"
+        },
+        {
+          "command": "gitDirDiff.clearFilters",
+          "when": "view == gitDirDiff.changes",
+          "group": "navigation@3"
         },
         {
           "command": "gitDirDiff.collapseAll",

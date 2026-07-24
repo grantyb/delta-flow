@@ -8,13 +8,29 @@ const SIMILARITY_ARGS = ['-M25', '-C25'];
 
 /** Runs git's own rename detection across the two temp trees and models the result. */
 export async function loadChanges(session: DiffSession): Promise<ChangeSet> {
-  const raw = await runRawDiff(session.left, session.right);
+  const raw = await runRawDiff(session, []);
   return new ChangeSet(new RawDiffParser(session).parse(raw));
 }
 
-function runRawDiff(left: string, right: string): Promise<string> {
+/**
+ * Paths whose added/removed lines match the pickaxe regex (git diff -G), for the
+ * "search changes" filter. Includes both sides of any matching rename.
+ */
+export async function matchingPaths(session: DiffSession, regex: string): Promise<Set<string>> {
+  const raw = await runRawDiff(session, ['-G', regex]);
+  const paths = new Set<string>();
+  for (const entry of new RawDiffParser(session).parse(raw)) {
+    paths.add(entry.path);
+    if (entry.oldPath) {
+      paths.add(entry.oldPath);
+    }
+  }
+  return paths;
+}
+
+function runRawDiff(session: DiffSession, extraArgs: string[]): Promise<string> {
   const args = ['diff', '--no-index', '--find-renames', '--find-copies',
-    ...SIMILARITY_ARGS, '--raw', '-z', '--', left, right];
+    ...SIMILARITY_ARGS, ...extraArgs, '--raw', '-z', '--', session.left, session.right];
   return new Promise((resolve, reject) => {
     execFile('git', args, { maxBuffer: 256 * 1024 * 1024 }, (err, stdout) => {
       // git diff exits 1 when differences are found — that is success for us.
