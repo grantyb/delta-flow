@@ -182,7 +182,8 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.description = describeEntry(entry);
     item.iconPath = statusIcon(entry.status);
     item.contextValue = 'file';
-    // Opening is driven by selection changes (see DiffView) so focus stays in the tree.
+    // Fires on click/Enter (not programmatic reveals) — pins a permanent editor.
+    item.command = { command: 'gitDirDiff.activate', title: 'Open', arguments: [node] };
     return item;
   }
 

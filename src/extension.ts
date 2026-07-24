@@ -12,9 +12,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     return; // Not a diff window — stay dormant.
   }
   registerContentProvider(context);
-  registerItemCommands(context);
   const view = new DiffView(session);
   context.subscriptions.push(view);
+  registerItemCommands(context, view);
   registerFilterCommands(context, view);
   await run(view, session);
 }
@@ -24,8 +24,9 @@ function registerContentProvider(context: vscode.ExtensionContext): void {
     vscode.workspace.registerTextDocumentContentProvider(SCHEME, new DiffContentProvider()));
 }
 
-function registerItemCommands(context: vscode.ExtensionContext): void {
+function registerItemCommands(context: vscode.ExtensionContext, view: DiffView): void {
   context.subscriptions.push(
+    vscode.commands.registerCommand('gitDirDiff.activate', (node?: TreeNode) => view.activate(node)),
     vscode.commands.registerCommand('gitDirDiff.openExternal', (node: TreeNode) =>
       node?.entry ? openExternalEntry(node.entry) : undefined));
 }

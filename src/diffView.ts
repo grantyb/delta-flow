@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ChangeEntry, ChangeSet } from './changeModel';
+import { openDiff } from './diffCommand';
 import { DiffLoader } from './diffLoader';
 import { PathFilter } from './filter';
 import { TreeNode } from './fileTree';
@@ -150,9 +151,18 @@ export class DiffView {
     this.view.dispose();
   }
 
-  /** Clicks (and our own reveals) land here; load the diff when a file is selected. */
+  /** Click/Enter on a file: pin a permanent editor (not a reused preview). */
+  activate(node?: TreeNode): void {
+    this.current = node;
+    this.loader.cancel();
+    if (node?.kind === 'file' && node.entry) {
+      void openDiff(node.entry, false);
+    }
+  }
+
+  /** Track the cursor as selection changes (clicks, type-ahead, our reveals). */
   private onSelectionChanged(selection: readonly TreeNode[]): void {
-    this.load(selection[0]);
+    this.current = selection[0];
   }
 
   /** Moves selection to the next/previous visible row and loads it if it's a file. */
@@ -182,14 +192,11 @@ export class DiffView {
     }
   }
 
+  /** Cursor navigation: reveal and load a reused preview (throttled). */
   private async selectAndLoad(node: TreeNode): Promise<void> {
     await this.view.reveal(node, { select: true, focus: true });
-    this.load(node);
-  }
-
-  private load(node?: TreeNode): void {
     this.current = node;
-    if (node?.kind === 'file' && node.entry) {
+    if (node.kind === 'file' && node.entry) {
       this.loader.request(node.entry);
     } else {
       this.loader.cancel();
