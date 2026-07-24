@@ -42,7 +42,8 @@ open_dir_diff() {
   # window open; the diff paths ride in workspace settings.
   workdir="$(mktemp -d "${TMPDIR:-/tmp}/git-dir-diff.XXXXXX")"
   workspace="$workdir/session.code-workspace"
-  trap 'rm -rf "$workdir"' EXIT
+  # Expand $workdir now so cleanup works even though it is function-local.
+  trap "rm -rf '$workdir'" EXIT
 
   cat > "$workspace" <<EOF
 {
