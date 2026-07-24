@@ -12,12 +12,14 @@ export class TreeNode {
 }
 
 /** Builds a folder hierarchy from the flat change list, keyed on destination paths. */
-export function buildTree(entries: ChangeEntry[]): TreeNode {
+export function buildTree(entries: ChangeEntry[], compact = true): TreeNode {
   const root = new TreeNode('', 'folder');
   for (const entry of entries) {
     insert(root, entry);
   }
-  compactChildren(root);
+  if (compact) {
+    compactChildren(root);
+  }
   return root;
 }
 

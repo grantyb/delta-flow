@@ -3,6 +3,11 @@ import { ChangeSet } from './changeModel';
 import { describeEntry, statusIcon } from './decorate';
 import { buildTree, TreeNode } from './fileTree';
 
+/** Mirrors the Explorer's own compaction toggle. */
+function compactFoldersEnabled(): boolean {
+  return vscode.workspace.getConfiguration('explorer').get<boolean>('compactFolders', true);
+}
+
 /** Feeds the folder hierarchy of changed files to the sidebar, expanded by default. */
 export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private root = new TreeNode('', 'folder');
@@ -11,7 +16,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 
   /** Populated once git finishes; fires a refresh so the tree re-renders. */
   setChanges(changes: ChangeSet): void {
-    this.root = buildTree(changes.entries);
+    this.root = buildTree(changes.entries, compactFoldersEnabled());
     this.changed.fire();
   }
 
