@@ -1,0 +1,62 @@
+{
+  "name": "git-dir-diff",
+  "displayName": "Git Directory Diff",
+  "description": "A read-only git directory diff viewer, usable as an external diff tool (e.g. from Tower) via git difftool --dir-diff.",
+  "version": "0.0.1",
+  "publisher": "cactuslab",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitDirDiff",
+          "title": "Directory Diff",
+          "icon": "media/diff.svg"
+        }
+      ]
+    },
+    "views": {
+      "gitDirDiff": [
+        {
+          "id": "gitDirDiff.changes",
+          "name": "Changed Files"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "gitDirDiff.openDiff",
+        "title": "Open Diff"
+      }
+    ],
+    "configuration": {
+      "title": "Git Directory Diff",
+      "properties": {
+        "gitDirDiff.session": {
+          "type": "object",
+          "default": null,
+          "description": "Internal: the LEFT/RIGHT temporary directories for the current diff session, injected by the git-dir-diff launcher."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.4.0"
+  }
+}
