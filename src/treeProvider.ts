@@ -8,14 +8,19 @@ function compactFoldersEnabled(): boolean {
   return vscode.workspace.getConfiguration('explorer').get<boolean>('compactFolders', true);
 }
 
-/** Numbers every node so each TreeItem gets a unique id within a generation. */
-function assignUids(root: TreeNode): void {
+/** Numbers every node (for unique TreeItem ids) and records child→parent links. */
+function indexTree(root: TreeNode): Map<TreeNode, TreeNode> {
+  const parents = new Map<TreeNode, TreeNode>();
   let next = 0;
-  const walk = (node: TreeNode): void => {
+  const walk = (node: TreeNode, parent?: TreeNode): void => {
     node.uid = next++;
-    node.children.forEach(walk);
+    if (parent) {
+      parents.set(node, parent);
+    }
+    node.children.forEach((child) => walk(child, node));
   };
-  walk(root);
+  root.children.forEach((child) => walk(child, undefined));
+  return parents;
 }
 
 /** Feeds the folder hierarchy of changed files to the sidebar, expanded by default. */
@@ -24,6 +29,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private collapsed = false;
   private generation = 0;
   private root = new TreeNode('', 'folder');
+  private parents = new Map<TreeNode, TreeNode>();
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.changed.event;
 
@@ -43,6 +49,28 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     return this.sorted([...(node ?? this.root).children.values()]);
   }
 
+  getParent(node: TreeNode): TreeNode | undefined {
+    return this.parents.get(node);
+  }
+
+  /** The first file in display order, used to seed the initial selection. */
+  firstFile(): TreeNode | undefined {
+    return this.findFirstFile(this.getChildren());
+  }
+
+  private findFirstFile(nodes: TreeNode[]): TreeNode | undefined {
+    for (const node of nodes) {
+      if (node.kind === 'file') {
+        return node;
+      }
+      const found = this.findFirstFile(this.getChildren(node));
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+
   getTreeItem(node: TreeNode): vscode.TreeItem {
     const item = node.kind === 'folder' ? this.folderItem(node) : this.fileItem(node);
     // A generation-stamped id makes VS Code treat items as new after a toggle,
@@ -54,7 +82,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private rebuild(): void {
     this.generation++;
     this.root = buildTree(this.entries, compactFoldersEnabled());
-    assignUids(this.root);
+    this.parents = indexTree(this.root);
     this.changed.fire();
   }
 

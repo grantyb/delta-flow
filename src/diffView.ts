@@ -14,8 +14,10 @@ export class DiffView {
   private readonly view: vscode.TreeView<TreeNode>;
   private readonly disposables: vscode.Disposable[] = [];
   private changes = new ChangeSet([]);
+  private visible = new ChangeSet([]);
   private filter = new PathFilter();
   private pendingOpen?: ReturnType<typeof setTimeout>;
+  private suppressOpenOnce = false;
 
   constructor() {
     this.view = vscode.window.createTreeView('gitDirDiff.changes', {
@@ -37,17 +39,17 @@ export class DiffView {
 
   populate(changes: ChangeSet): void {
     this.changes = changes;
-    this.render();
+    this.apply();
   }
 
   setFilter(patterns: string): void {
     this.filter = new PathFilter(patterns);
-    this.render();
+    this.apply();
   }
 
   clearFilters(): void {
     this.filter = new PathFilter();
-    this.render();
+    this.apply();
   }
 
   collapseAll(): void {
@@ -69,6 +71,10 @@ export class DiffView {
   /** Loads a file's diff when it becomes selected, debounced for held cursor keys. */
   private onSelectionChanged(selection: readonly TreeNode[]): void {
     this.cancelPendingOpen();
+    if (this.suppressOpenOnce) {
+      this.suppressOpenOnce = false;
+      return; // The seeded selection shouldn't auto-open a multi-file changeset.
+    }
     const node = selection[0];
     if (node?.kind === 'file' && node.entry) {
       this.scheduleOpen(node.entry);
@@ -86,11 +92,30 @@ export class DiffView {
     }
   }
 
+  private apply(): void {
+    this.render();
+    void this.seedSelection();
+  }
+
   private render(): void {
-    const filtered = new ChangeSet(this.changes.entries.filter((e) => this.filter.keep(e)));
-    this.provider.setChanges(filtered);
+    this.visible = new ChangeSet(this.changes.entries.filter((e) => this.filter.keep(e)));
+    this.provider.setChanges(this.visible);
     this.view.description = this.filter.isActive ? this.filter.summary() : undefined;
-    this.view.message = this.messageFor(filtered);
+    this.view.message = this.messageFor(this.visible);
+  }
+
+  /**
+   * Selects the first file so focus === selection; VS Code then moves selection
+   * with focus as you cursor (workbench.list.selectionFollowsFocus), loading each
+   * diff. Only auto-opens when a single file is shown.
+   */
+  private async seedSelection(): Promise<void> {
+    const first = this.provider.firstFile();
+    if (!first) {
+      return;
+    }
+    this.suppressOpenOnce = this.visible.entries.length > 1;
+    await this.view.reveal(first, { select: true, focus: true });
   }
 
   private messageFor(filtered: ChangeSet): string | undefined {

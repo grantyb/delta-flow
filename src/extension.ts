@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ChangeEntry, ChangeSet } from './changeModel';
+import { ChangeEntry } from './changeModel';
 import { DiffContentProvider, SCHEME } from './contentProvider';
 import { DiffView } from './diffView';
 import { openDiff, openExternalEntry } from './diffCommand';
@@ -56,9 +56,7 @@ async function promptFilter(current: string, apply: (value: string) => void): Pr
 async function run(view: DiffView, session: DiffSession): Promise<void> {
   await focusView();
   const changes = await loadChanges(session);
-  view.populate(changes);
-  await focusView(); // Re-assert in case the startup layout restore stole focus.
-  await openOnlyFile(changes);
+  view.populate(changes); // Seeds the selection, which reveals and focuses the tree.
 }
 
 /** Reveal and expand our Changed Files section within the Explorer viewlet. */
@@ -67,13 +65,6 @@ async function focusView(): Promise<void> {
     await vscode.commands.executeCommand('gitDirDiff.changes.focus');
   } catch {
     // The view may not be ready during very early startup; a later call wins.
-  }
-}
-
-/** Auto-open a diff only when a single file changed; otherwise let the user choose. */
-async function openOnlyFile(changes: ChangeSet): Promise<void> {
-  if (changes.entries.length === 1) {
-    await openDiff(changes.entries[0]);
   }
 }
 
