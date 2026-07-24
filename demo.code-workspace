@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "gitDirDiff.session": {
+      "left": "fixtures/left",
+      "right": "fixtures/right"
+    }
+  }
+}
