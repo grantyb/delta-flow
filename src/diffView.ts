@@ -1,23 +1,23 @@
 import * as vscode from 'vscode';
-import { ChangeEntry, ChangeSet } from './changeModel';
-import { openDiff } from './diffCommand';
+import { ChangeSet } from './changeModel';
+import { DiffLoader } from './diffLoader';
 import { PathFilter } from './filter';
 import { TreeNode } from './fileTree';
 import { ChangesTreeProvider } from './treeProvider';
 
-/** How long to wait after a selection settles before loading its diff. */
-const OPEN_DEBOUNCE_MS = 150;
+/** Throttle window for loading diffs while navigating. */
+const OPEN_THROTTLE_MS = 150;
 
 /** Owns the sidebar tree, its provider, the active filter, and their display states. */
 export class DiffView {
   private readonly provider = new ChangesTreeProvider();
   private readonly view: vscode.TreeView<TreeNode>;
+  private readonly loader = new DiffLoader(OPEN_THROTTLE_MS);
   private readonly disposables: vscode.Disposable[] = [];
   private changes = new ChangeSet([]);
   private visible = new ChangeSet([]);
   private filter = new PathFilter();
-  private pendingOpen?: ReturnType<typeof setTimeout>;
-  private currentFile?: TreeNode;
+  private current?: TreeNode;
 
   constructor() {
     this.view = vscode.window.createTreeView('gitDirDiff.changes', {
@@ -26,10 +26,9 @@ export class DiffView {
     });
     this.view.message = 'Loading changes…';
     this.disposables.push(
-      // Clicks change selection directly; cursor keys are handled by next/prev.
       this.view.onDidChangeSelection((e) => this.onSelectionChanged(e.selection)),
-      // Expanding a folder means the tree is no longer fully collapsed.
-      this.view.onDidExpandElement(() => this.setCollapsedContext(false)));
+      this.view.onDidCollapseElement((e) => this.provider.onCollapsed(e.element)),
+      this.view.onDidExpandElement((e) => this.onExpanded(e.element)));
     this.setCollapsedContext(false);
   }
 
@@ -54,12 +53,12 @@ export class DiffView {
   }
 
   collapseAll(): void {
-    this.provider.setCollapsed(true);
+    this.provider.collapseAll();
     this.setCollapsedContext(true);
   }
 
   expandAll(): void {
-    this.provider.setCollapsed(false);
+    this.provider.expandAll();
     this.setCollapsedContext(false);
   }
 
@@ -72,49 +71,43 @@ export class DiffView {
   }
 
   dispose(): void {
-    this.cancelPendingOpen();
+    this.loader.dispose();
     this.disposables.forEach((d) => d.dispose());
     this.view.dispose();
   }
 
-  /** Clicking a file selects it directly; load its diff (debounced). */
+  /** Clicks (and our own reveals) land here; load the diff when a file is selected. */
   private onSelectionChanged(selection: readonly TreeNode[]): void {
-    const node = selection[0];
-    if (node?.kind === 'file' && node.entry) {
-      this.currentFile = node;
-      this.scheduleOpen(node.entry);
-    }
+    this.load(selection[0]);
   }
 
-  /** Moves selection to the next/previous file and loads its diff. */
+  /** Moves selection to the next/previous visible row and loads it if it's a file. */
   private async step(delta: number): Promise<void> {
-    const files = this.provider.orderedFiles();
-    if (files.length === 0) {
+    const rows = this.provider.visibleRows();
+    if (rows.length === 0) {
       return;
     }
-    const current = this.currentFile ? files.indexOf(this.currentFile) : -1;
-    const target = files[clamp(current + delta, 0, files.length - 1)];
-    await this.select(target);
+    const index = this.current ? rows.indexOf(this.current) : -1;
+    await this.selectAndLoad(rows[clamp(index + delta, 0, rows.length - 1)]);
   }
 
-  private async select(node: TreeNode): Promise<void> {
-    this.currentFile = node;
+  private async selectAndLoad(node: TreeNode): Promise<void> {
     await this.view.reveal(node, { select: true, focus: true });
-    if (node.entry) {
-      this.scheduleOpen(node.entry);
+    this.load(node);
+  }
+
+  private load(node?: TreeNode): void {
+    this.current = node;
+    if (node?.kind === 'file' && node.entry) {
+      this.loader.request(node.entry);
+    } else {
+      this.loader.cancel();
     }
   }
 
-  private scheduleOpen(entry: ChangeEntry): void {
-    this.cancelPendingOpen();
-    this.pendingOpen = setTimeout(() => void openDiff(entry), OPEN_DEBOUNCE_MS);
-  }
-
-  private cancelPendingOpen(): void {
-    if (this.pendingOpen) {
-      clearTimeout(this.pendingOpen);
-      this.pendingOpen = undefined;
-    }
+  private onExpanded(node: TreeNode): void {
+    this.provider.onExpanded(node);
+    this.setCollapsedContext(false);
   }
 
   private render(): void {
@@ -126,9 +119,9 @@ export class DiffView {
 
   /** Open the diff automatically only when a single file changed. */
   private autoOpenSingle(): void {
-    const files = this.provider.orderedFiles();
+    const files = this.provider.visibleRows().filter((n) => n.kind === 'file');
     if (files.length === 1) {
-      void this.select(files[0]);
+      void this.selectAndLoad(files[0]);
     }
   }
 

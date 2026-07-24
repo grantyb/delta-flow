@@ -9,6 +9,8 @@ export class TreeNode {
   entry?: ChangeEntry;
   /** Assigned per rebuild; used to give each TreeItem a unique, generation-stamped id. */
   uid = 0;
+  /** Full slash-joined path from the root; stable across rebuilds. */
+  path = '';
 
   constructor(public name: string, readonly kind: NodeKind) {}
 }

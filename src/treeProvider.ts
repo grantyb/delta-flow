@@ -8,12 +8,13 @@ function compactFoldersEnabled(): boolean {
   return vscode.workspace.getConfiguration('explorer').get<boolean>('compactFolders', true);
 }
 
-/** Numbers every node (for unique TreeItem ids) and records child→parent links. */
+/** Numbers every node (unique ids), records child→parent links, and sets full paths. */
 function indexTree(root: TreeNode): Map<TreeNode, TreeNode> {
   const parents = new Map<TreeNode, TreeNode>();
   let next = 0;
   const walk = (node: TreeNode, parent?: TreeNode): void => {
     node.uid = next++;
+    node.path = parent ? `${parent.path}/${node.name}` : node.name;
     if (parent) {
       parents.set(node, parent);
     }
@@ -26,22 +27,17 @@ function indexTree(root: TreeNode): Map<TreeNode, TreeNode> {
 /** Feeds the folder hierarchy of changed files to the sidebar, expanded by default. */
 export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private entries: ChangeEntry[] = [];
-  private collapsed = false;
   private generation = 0;
   private root = new TreeNode('', 'folder');
   private parents = new Map<TreeNode, TreeNode>();
+  private collapsedPaths = new Set<string>();
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.changed.event;
 
   /** Populated once git finishes; fires a refresh so the tree re-renders. */
   setChanges(changes: ChangeSet): void {
     this.entries = changes.entries;
-    this.rebuild();
-  }
-
-  /** Rebuilds with fresh node identities so VS Code honors the new expansion state. */
-  setCollapsed(collapsed: boolean): void {
-    this.collapsed = collapsed;
+    this.collapsedPaths.clear();
     this.rebuild();
   }
 
@@ -53,28 +49,45 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     return this.parents.get(node);
   }
 
-  /** All file nodes in display order, for cursor-key navigation. */
-  orderedFiles(): TreeNode[] {
-    const files: TreeNode[] = [];
-    const walk = (nodes: TreeNode[]): void => {
-      for (const node of nodes) {
-        if (node.kind === 'file') {
-          files.push(node);
-        } else {
-          walk(this.getChildren(node));
-        }
-      }
-    };
-    walk(this.getChildren());
-    return files;
-  }
-
   getTreeItem(node: TreeNode): vscode.TreeItem {
     const item = node.kind === 'folder' ? this.folderItem(node) : this.fileItem(node);
     // A generation-stamped id makes VS Code treat items as new after a toggle,
     // so it re-applies collapsibleState instead of preserving expansion state.
     item.id = `${this.generation}:${node.uid}`;
     return item;
+  }
+
+  /** Nodes in display order, descending into folders only when expanded. */
+  visibleRows(): TreeNode[] {
+    const rows: TreeNode[] = [];
+    const walk = (nodes: TreeNode[]): void => {
+      for (const node of nodes) {
+        rows.push(node);
+        if (node.kind === 'folder' && !this.collapsedPaths.has(node.path)) {
+          walk(this.getChildren(node));
+        }
+      }
+    };
+    walk(this.getChildren());
+    return rows;
+  }
+
+  onCollapsed(node: TreeNode): void {
+    this.collapsedPaths.add(node.path);
+  }
+
+  onExpanded(node: TreeNode): void {
+    this.collapsedPaths.delete(node.path);
+  }
+
+  collapseAll(): void {
+    this.collapsedPaths = new Set(this.allFolderPaths());
+    this.rebuild();
+  }
+
+  expandAll(): void {
+    this.collapsedPaths.clear();
+    this.rebuild();
   }
 
   private rebuild(): void {
@@ -84,8 +97,22 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     this.changed.fire();
   }
 
+  private allFolderPaths(): string[] {
+    const paths: string[] = [];
+    const walk = (nodes: TreeNode[]): void => {
+      for (const node of nodes) {
+        if (node.kind === 'folder') {
+          paths.push(node.path);
+          walk(this.getChildren(node));
+        }
+      }
+    };
+    walk(this.getChildren());
+    return paths;
+  }
+
   private folderItem(node: TreeNode): vscode.TreeItem {
-    const state = this.collapsed
+    const state = this.collapsedPaths.has(node.path)
       ? vscode.TreeItemCollapsibleState.Collapsed
       : vscode.TreeItemCollapsibleState.Expanded;
     const item = new vscode.TreeItem(node.name, state);
