@@ -2,14 +2,18 @@ import { ChangeEntry } from './changeModel';
 
 type Matcher = (path: string) => boolean;
 
-/** Include/exclude path filters, each a comma-separated list of expressions. */
+/**
+ * A comma-separated path filter. Each expression includes matching files, unless
+ * it starts with "!", which excludes them. Matching is case-insensitive.
+ */
 export class PathFilter {
   private readonly includers: Matcher[];
   private readonly excluders: Matcher[];
 
-  constructor(readonly include = '', readonly exclude = '') {
-    this.includers = parse(include);
-    this.excluders = parse(exclude);
+  constructor(readonly patterns = '') {
+    const compiled = compileAll(patterns);
+    this.includers = compiled.includers;
+    this.excluders = compiled.excluders;
   }
 
   get isActive(): boolean {
@@ -24,10 +28,7 @@ export class PathFilter {
   }
 
   summary(): string {
-    const parts: string[] = [];
-    if (this.include.trim()) parts.push(`incl: ${this.include.trim()}`);
-    if (this.exclude.trim()) parts.push(`excl: ${this.exclude.trim()}`);
-    return parts.join('  ·  ');
+    return this.patterns.trim();
   }
 }
 
@@ -35,8 +36,18 @@ function matchesAny(matchers: Matcher[], paths: string[]): boolean {
   return matchers.some((match) => paths.some(match));
 }
 
-function parse(csv: string): Matcher[] {
-  return csv.split(',').map(compile).filter((m): m is Matcher => m !== undefined);
+function compileAll(csv: string): { includers: Matcher[]; excluders: Matcher[] } {
+  const includers: Matcher[] = [];
+  const excluders: Matcher[] = [];
+  for (const raw of csv.split(',')) {
+    const trimmed = raw.trim();
+    const isExclude = trimmed.startsWith('!');
+    const matcher = compile(isExclude ? trimmed.slice(1) : trimmed);
+    if (matcher) {
+      (isExclude ? excluders : includers).push(matcher);
+    }
+  }
+  return { includers, excluders };
 }
 
 /**
@@ -56,14 +67,15 @@ function compile(raw: string): Matcher | undefined {
     const re = globToRegExp(expr);
     return (path) => re.test(basename(path));
   }
-  return (path) => path.includes(expr);
+  const needle = expr.toLowerCase();
+  return (path) => path.toLowerCase().includes(needle);
 }
 
 function basename(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
 }
 
-/** Converts a glob to an anchored RegExp: ** spans directories, * and ? do not. */
+/** Converts a glob to an anchored, case-insensitive RegExp: ** spans directories, * and ? do not. */
 function globToRegExp(glob: string): RegExp {
   let out = '^';
   for (let i = 0; i < glob.length; i++) {
@@ -82,7 +94,7 @@ function globToRegExp(glob: string): RegExp {
       i += 1;
     }
   }
-  return new RegExp(out + '$');
+  return new RegExp(out + '$', 'i');
 }
 
 function escape(char: string): string {

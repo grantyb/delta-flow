@@ -34,17 +34,15 @@ function registerOpenCommand(context: vscode.ExtensionContext): void {
 
 function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitDirDiff.setInclude', () =>
-      promptFilter('Include', view.include, (value) => view.setInclude(value))),
-    vscode.commands.registerCommand('gitDirDiff.setExclude', () =>
-      promptFilter('Exclude', view.exclude, (value) => view.setExclude(value))),
+    vscode.commands.registerCommand('gitDirDiff.setFilter', () =>
+      promptFilter(view.patterns, (value) => view.setFilter(value))),
     vscode.commands.registerCommand('gitDirDiff.clearFilters', () => view.clearFilters()));
 }
 
-async function promptFilter(label: string, current: string, apply: (value: string) => void): Promise<void> {
+async function promptFilter(current: string, apply: (value: string) => void): Promise<void> {
   const value = await vscode.window.showInputBox({
-    title: `${label} patterns`,
-    prompt: 'Comma-separated, e.g. **/target/**, *.java, AbstractFoo',
+    title: 'Filter paths',
+    prompt: 'Comma-separated; prefix with ! to exclude. e.g. *.java, *.jsp, !**/target/**',
     value: current,
     ignoreFocusOut: true,
   });

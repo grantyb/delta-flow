@@ -18,12 +18,8 @@ export class DiffView {
     this.view.message = 'Loading changes…';
   }
 
-  get include(): string {
-    return this.filter.include;
-  }
-
-  get exclude(): string {
-    return this.filter.exclude;
+  get patterns(): string {
+    return this.filter.patterns;
   }
 
   populate(changes: ChangeSet): void {
@@ -31,13 +27,8 @@ export class DiffView {
     this.render();
   }
 
-  setInclude(include: string): void {
-    this.filter = new PathFilter(include, this.filter.exclude);
-    this.render();
-  }
-
-  setExclude(exclude: string): void {
-    this.filter = new PathFilter(this.filter.include, exclude);
+  setFilter(patterns: string): void {
+    this.filter = new PathFilter(patterns);
     this.render();
   }
 

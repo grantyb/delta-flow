@@ -43,16 +43,10 @@
         "category": "Git Directory Diff"
       },
       {
-        "command": "gitDirDiff.setInclude",
-        "title": "Filter: Include Paths",
+        "command": "gitDirDiff.setFilter",
+        "title": "Filter Paths",
         "category": "Git Directory Diff",
         "icon": "$(filter)"
-      },
-      {
-        "command": "gitDirDiff.setExclude",
-        "title": "Filter: Exclude Paths",
-        "category": "Git Directory Diff",
-        "icon": "$(circle-slash)"
       },
       {
         "command": "gitDirDiff.clearFilters",
@@ -64,19 +58,14 @@
     "menus": {
       "view/title": [
         {
-          "command": "gitDirDiff.setInclude",
+          "command": "gitDirDiff.setFilter",
           "when": "view == gitDirDiff.changes",
           "group": "navigation@1"
         },
         {
-          "command": "gitDirDiff.setExclude",
-          "when": "view == gitDirDiff.changes",
-          "group": "navigation@2"
-        },
-        {
           "command": "gitDirDiff.clearFilters",
           "when": "view == gitDirDiff.changes",
-          "group": "navigation@3"
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
