@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
-import { ChangeEntry } from './changeModel';
 import { DiffContentProvider, SCHEME } from './contentProvider';
 import { DiffView } from './diffView';
-import { openDiff, openExternalEntry } from './diffCommand';
+import { openExternalEntry } from './diffCommand';
 import { TreeNode } from './fileTree';
 import { loadChanges } from './gitDiff';
 import { DiffSession, readSession } from './session';
@@ -13,7 +12,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     return; // Not a diff window — stay dormant.
   }
   registerContentProvider(context);
-  registerOpenCommand(context);
+  registerItemCommands(context);
   const view = new DiffView();
   context.subscriptions.push(view);
   registerFilterCommands(context, view);
@@ -25,9 +24,8 @@ function registerContentProvider(context: vscode.ExtensionContext): void {
     vscode.workspace.registerTextDocumentContentProvider(SCHEME, new DiffContentProvider()));
 }
 
-function registerOpenCommand(context: vscode.ExtensionContext): void {
+function registerItemCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitDirDiff.openDiff', (entry: ChangeEntry) => openDiff(entry)),
     vscode.commands.registerCommand('gitDirDiff.openExternal', (node: TreeNode) =>
       node?.entry ? openExternalEntry(node.entry) : undefined));
 }
@@ -58,7 +56,7 @@ async function promptFilter(current: string, apply: (value: string) => void): Pr
 async function run(view: DiffView, session: DiffSession): Promise<void> {
   await focusView();
   const changes = await loadChanges(session);
-  view.populate(changes); // Seeds the selection, which reveals and focuses the tree.
+  view.populate(changes);
 }
 
 /** Reveal and expand our Changed Files section within the Explorer viewlet. */

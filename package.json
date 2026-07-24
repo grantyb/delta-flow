@@ -34,10 +34,6 @@
     },
     "commands": [
       {
-        "command": "gitDirDiff.openDiff",
-        "title": "Open Diff"
-      },
-      {
         "command": "gitDirDiff.openExternal",
         "title": "Open in External App",
         "category": "Git Directory Diff"
