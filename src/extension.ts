@@ -58,7 +58,7 @@ async function run(view: DiffView, session: DiffSession): Promise<void> {
   const changes = await loadChanges(session);
   view.populate(changes);
   await focusView(); // Re-assert in case the startup layout restore stole focus.
-  await openFirst(changes);
+  await openOnlyFile(changes);
 }
 
 /** Reveal and expand our Changed Files section within the Explorer viewlet. */
@@ -70,10 +70,10 @@ async function focusView(): Promise<void> {
   }
 }
 
-async function openFirst(changes: ChangeSet): Promise<void> {
-  const first = changes.entries[0];
-  if (first) {
-    await openDiff(first);
+/** Auto-open a diff only when a single file changed; otherwise let the user choose. */
+async function openOnlyFile(changes: ChangeSet): Promise<void> {
+  if (changes.entries.length === 1) {
+    await openDiff(changes.entries[0]);
   }
 }
 
