@@ -6,7 +6,7 @@
 # We open a VS Code window whose workspace settings carry the two paths, then
 # block (via --wait) until the user closes it, so git keeps the temp trees alive.
 #
-# Configure the VS Code CLI with $GIT_DIR_DIFF_CODE if `code` is not on PATH.
+# Set $GIT_DIR_DIFF_CODE to override the VS Code CLI location.
 
 set -euo pipefail
 
@@ -15,23 +15,49 @@ if [[ $# -lt 2 ]]; then
   exit 2
 fi
 
-code_bin="${GIT_DIR_DIFF_CODE:-code}"
+# Tower and other GUI clients run with a minimal PATH, so probe known locations.
+find_code() {
+  local candidate
+  for candidate in "${GIT_DIR_DIFF_CODE:-}" code /usr/local/bin/code \
+    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"; do
+    if [[ -n "$candidate" ]] && command -v "$candidate" >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  echo "error: could not find the VS Code CLI; set GIT_DIR_DIFF_CODE" >&2
+  return 1
+}
 
-# Resolve to absolute paths — git may pass these relative to the repo root.
-left="$(cd "$1" && pwd)"
-right="$(cd "$2" && pwd)"
+code_bin="$(find_code)"
 
-workdir="$(mktemp -d "${TMPDIR:-/tmp}/git-dir-diff.XXXXXX")"
-workspace="$workdir/session.code-workspace"
-trap 'rm -rf "$workdir"' EXIT
+# Without --dir-diff, git invokes us once per file. Fall back to a plain diff so
+# this tool is safe to set as the global diff.tool.
+open_dir_diff() {
+  local left right workdir workspace
+  left="$(cd "$1" && pwd)"
+  right="$(cd "$2" && pwd)"
 
-cat > "$workspace" <<EOF
+  # An empty scratch folder anchors the workspace so --wait reliably holds the
+  # window open; the diff paths ride in workspace settings.
+  workdir="$(mktemp -d "${TMPDIR:-/tmp}/git-dir-diff.XXXXXX")"
+  workspace="$workdir/session.code-workspace"
+  trap 'rm -rf "$workdir"' EXIT
+
+  cat > "$workspace" <<EOF
 {
-  "folders": [],
+  "folders": [{ "path": "." }],
   "settings": {
     "gitDirDiff.session": { "left": "$left", "right": "$right" }
   }
 }
 EOF
 
-"$code_bin" --new-window --wait "$workspace"
+  "$code_bin" --new-window --wait "$workspace"
+}
+
+if [[ -d "$1" && -d "$2" ]]; then
+  open_dir_diff "$1" "$2"
+else
+  "$code_bin" --diff --wait "$1" "$2"
+fi
