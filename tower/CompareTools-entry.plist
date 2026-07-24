@@ -1,0 +1,17 @@
+<!-- Add this <dict> to the top-level <array> of Tower's CompareTools.plist. -->
+<dict>
+	<key>ApplicationIdentifier</key>
+	<string>com.microsoft.VSCode</string>
+	<key>ApplicationName</key>
+	<string>Visual Studio Code</string>
+	<key>DisplayName</key>
+	<string>VS Code Directory Diff</string>
+	<key>Identifier</key>
+	<string>vscode-dir-diff</string>
+	<key>LaunchScript</key>
+	<string>git-dir-diff.sh</string>
+	<key>SupportsDiffChangeset</key>
+	<true/>
+	<key>SupportsMergeTool</key>
+	<false/>
+</dict>
