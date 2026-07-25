@@ -56,10 +56,13 @@ open_dir_diff() {
     "workbench.startupEditor": "none",
     "explorer.openEditors.visible": 0,
     "workbench.editor.enablePreview": true,
-    "files.exclude": { "session.code-workspace": true }
+    "files.exclude": { "session.code-workspace": true, ".delta-flow": true }
   }
 }
 EOF
+
+  # Marker that scopes the extension's activationEvents to Delta Flow windows only.
+  touch "$workdir/.delta-flow"
 
   "$code_bin" --new-window --wait "$workspace"
 }

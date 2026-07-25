@@ -25,7 +25,8 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "*"
+    "workspaceContains:.delta-flow",
+    "onCommand:deltaFlow.installTowerIntegration"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
