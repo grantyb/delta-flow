@@ -6,11 +6,13 @@ import { TreeNode } from './fileTree';
 import { loadChanges } from './gitDiff';
 import { DiffSession, readSession } from './session';
 import { installTowerIntegration } from './towerSetup';
+import { diffWorkingTree } from './workingTree';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  // Available in every window so users can run it from a normal VS Code session.
+  // Available in every window so users can run them from a normal VS Code session.
   context.subscriptions.push(
-    vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)));
+    vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)),
+    vscode.commands.registerCommand('deltaFlow.diffWorkingTree', () => diffWorkingTree(context.extensionPath)));
   const session = readSession();
   if (!session) {
     return; // Not a diff window — stay dormant.

@@ -26,7 +26,8 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "workspaceContains:.delta-flow",
-    "onCommand:deltaFlow.installTowerIntegration"
+    "onCommand:deltaFlow.installTowerIntegration",
+    "onCommand:deltaFlow.diffWorkingTree"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -56,6 +57,11 @@
       {
         "command": "deltaFlow.installTowerIntegration",
         "title": "Install Tower Integration",
+        "category": "Delta Flow"
+      },
+      {
+        "command": "deltaFlow.diffWorkingTree",
+        "title": "Diff Working Tree",
         "category": "Delta Flow"
       },
       {
