@@ -25,9 +25,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "workspaceContains:.delta-flow",
-    "onCommand:deltaFlow.installTowerIntegration",
-    "onCommand:deltaFlow.diffWorkingTree"
+    "workspaceContains:.delta-flow"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -49,7 +47,8 @@
       "deltaFlow": [
         {
           "id": "deltaFlow.changes",
-          "name": "Changed Files"
+          "name": "Changed Files",
+          "icon": "media/delta-flow.svg"
         }
       ]
     },
@@ -70,6 +69,12 @@
         "category": "Delta Flow"
       },
       {
+        "command": "deltaFlow.revealCounterpart",
+        "title": "Reveal Renamed Counterpart",
+        "category": "Delta Flow",
+        "icon": "$(arrow-swap)"
+      },
+      {
         "command": "deltaFlow.setFilter",
         "title": "Filter Paths",
         "category": "Delta Flow",
@@ -80,6 +85,12 @@
         "title": "Search Changes",
         "category": "Delta Flow",
         "icon": "$(search)"
+      },
+      {
+        "command": "deltaFlow.filterStatus",
+        "title": "Filter by Status",
+        "category": "Delta Flow",
+        "icon": "$(list-filter)"
       },
       {
         "command": "deltaFlow.clearFilters",
@@ -107,6 +118,16 @@
       {
         "command": "deltaFlow.previous",
         "title": "Previous Changed File",
+        "category": "Delta Flow"
+      },
+      {
+        "command": "deltaFlow.collapseOrParent",
+        "title": "Collapse Folder or Go to Parent",
+        "category": "Delta Flow"
+      },
+      {
+        "command": "deltaFlow.expandOrChild",
+        "title": "Expand Folder or Go to First Child",
         "category": "Delta Flow"
       },
       {
@@ -176,26 +197,36 @@
           "group": "navigation@2"
         },
         {
-          "command": "deltaFlow.clearFilters",
+          "command": "deltaFlow.filterStatus",
           "when": "view == deltaFlow.changes",
           "group": "navigation@3"
         },
         {
+          "command": "deltaFlow.clearFilters",
+          "when": "view == deltaFlow.changes",
+          "group": "navigation@4"
+        },
+        {
           "command": "deltaFlow.collapseAll",
           "when": "view == deltaFlow.changes && !deltaFlow.collapsed",
-          "group": "navigation@3"
+          "group": "navigation@5"
         },
         {
           "command": "deltaFlow.expandAll",
           "when": "view == deltaFlow.changes && deltaFlow.collapsed",
-          "group": "navigation@3"
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
         {
           "command": "deltaFlow.openExternal",
-          "when": "view == deltaFlow.changes && viewItem == file",
+          "when": "view == deltaFlow.changes && viewItem =~ /^file/",
           "group": "navigation"
+        },
+        {
+          "command": "deltaFlow.revealCounterpart",
+          "when": "view == deltaFlow.changes && viewItem == fileMove",
+          "group": "navigation@1"
         },
         {
           "command": "deltaFlow.expandSubtree",

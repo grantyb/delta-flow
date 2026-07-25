@@ -6,6 +6,7 @@ import { PathFilter } from './filter';
 import { TreeNode } from './fileTree';
 import { matchingPaths } from './gitDiff';
 import { DiffSession } from './session';
+import { StatusCategory, StatusFilter } from './statusFilter';
 import { ChangesTreeProvider } from './treeProvider';
 
 /** Throttle window for loading diffs while navigating. */
@@ -13,18 +14,20 @@ const OPEN_THROTTLE_MS = 150;
 
 /** Owns the sidebar tree, its provider, the active filter, and their display states. */
 export class DiffView {
-  private readonly provider = new ChangesTreeProvider();
+  private readonly provider: ChangesTreeProvider;
   private readonly view: vscode.TreeView<TreeNode>;
-  private readonly loader = new DiffLoader(OPEN_THROTTLE_MS);
+  private readonly loader = new DiffLoader(OPEN_THROTTLE_MS, (entry) => this.open(entry, true));
   private readonly disposables: vscode.Disposable[] = [];
   private changes = new ChangeSet([]);
   private visible = new ChangeSet([]);
   private filter = new PathFilter();
+  private statusFilter = new StatusFilter();
   private search = '';
   private searchMatches?: Set<string>;
   private current?: TreeNode;
 
-  constructor(private readonly session: DiffSession) {
+  constructor(private readonly session: DiffSession, extensionUri?: vscode.Uri) {
+    this.provider = new ChangesTreeProvider(extensionUri);
     this.view = vscode.window.createTreeView('deltaFlow.changes', {
       treeDataProvider: this.provider,
       showCollapseAll: false,
@@ -56,8 +59,18 @@ export class DiffView {
     this.render();
   }
 
+  isStatusEnabled(category: StatusCategory): boolean {
+    return this.statusFilter.has(category);
+  }
+
+  setStatusFilter(categories: StatusCategory[]): void {
+    this.statusFilter = new StatusFilter(categories);
+    this.render();
+  }
+
   clearFilters(): void {
     this.filter = new PathFilter();
+    this.statusFilter = new StatusFilter();
     this.search = '';
     this.searchMatches = undefined;
     this.render();
@@ -151,13 +164,34 @@ export class DiffView {
     this.view.dispose();
   }
 
+  /** Jump from one end of a cross-directory move to its counterpart node. */
+  revealCounterpart(node?: TreeNode): void {
+    const entry = node?.entry;
+    if (!entry || !node.moveRole) {
+      return;
+    }
+    const targetPath = node.moveRole === 'from' ? entry.path : entry.oldPath;
+    const target = targetPath ? this.provider.nodeByPath(targetPath) : undefined;
+    if (target) {
+      void this.selectAndLoad(target);
+    }
+  }
+
   /** Click/Enter on a file: pin a permanent editor (not a reused preview). */
   activate(node?: TreeNode): void {
     this.current = node;
     this.loader.cancel();
     if (node?.kind === 'file' && node.entry) {
-      void openDiff(node.entry, false);
+      this.open(node.entry, false);
     }
+  }
+
+  /** Opens a diff, resolving the whitespace-only flag lazily and refreshing the tree. */
+  private open(entry: ChangeEntry, preview: boolean): void {
+    void openDiff(entry, {
+      preview,
+      onResolved: () => this.provider.refresh(),
+    });
   }
 
   /** Track the cursor as selection changes (clicks, type-ahead, our reveals). */
@@ -216,7 +250,7 @@ export class DiffView {
   }
 
   private keep(entry: ChangeEntry): boolean {
-    return this.filter.keep(entry) && this.matchesSearch(entry);
+    return this.filter.keep(entry) && this.statusFilter.keep(entry.status) && this.matchesSearch(entry);
   }
 
   private matchesSearch(entry: ChangeEntry): boolean {
@@ -231,6 +265,9 @@ export class DiffView {
     const parts: string[] = [];
     if (this.filter.isActive) {
       parts.push(this.filter.summary());
+    }
+    if (this.statusFilter.isActive) {
+      parts.push(this.statusFilter.summary());
     }
     if (this.search) {
       parts.push(`search: ${this.search}`);

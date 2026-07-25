@@ -5,6 +5,7 @@ import { openExternalEntry } from './diffCommand';
 import { TreeNode } from './fileTree';
 import { loadChanges } from './gitDiff';
 import { DiffSession, readSession } from './session';
+import { StatusFilter } from './statusFilter';
 import { installTowerIntegration } from './towerSetup';
 import { diffWorkingTree } from './workingTree';
 
@@ -18,7 +19,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     return; // Not a diff window — stay dormant.
   }
   registerContentProvider(context);
-  const view = new DiffView(session);
+  const view = new DiffView(session, context.extensionUri);
   context.subscriptions.push(view);
   registerItemCommands(context, view);
   registerFilterCommands(context, view);
@@ -34,7 +35,9 @@ function registerItemCommands(context: vscode.ExtensionContext, view: DiffView):
   context.subscriptions.push(
     vscode.commands.registerCommand('deltaFlow.activate', (node?: TreeNode) => view.activate(node)),
     vscode.commands.registerCommand('deltaFlow.openExternal', (node: TreeNode) =>
-      node?.entry ? openExternalEntry(node.entry) : undefined));
+      node?.entry ? openExternalEntry(node.entry) : undefined),
+    vscode.commands.registerCommand('deltaFlow.revealCounterpart', (node?: TreeNode) =>
+      view.revealCounterpart(node)));
 }
 
 function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView): void {
@@ -42,6 +45,7 @@ function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView
     vscode.commands.registerCommand('deltaFlow.setFilter', () =>
       promptFilter(view.patterns, (value) => view.setFilter(value))),
     vscode.commands.registerCommand('deltaFlow.searchChanges', () => promptSearch(view)),
+    vscode.commands.registerCommand('deltaFlow.filterStatus', () => promptStatus(view)),
     vscode.commands.registerCommand('deltaFlow.clearFilters', () => view.clearFilters()),
     vscode.commands.registerCommand('deltaFlow.collapseAll', () => view.collapseAll()),
     vscode.commands.registerCommand('deltaFlow.expandAll', () => view.expandAll()),
@@ -62,6 +66,22 @@ async function promptFilter(current: string, apply: (value: string) => void): Pr
   });
   if (value !== undefined) {
     apply(value);
+  }
+}
+
+async function promptStatus(view: DiffView): Promise<void> {
+  const items = StatusFilter.options.map((option) => ({
+    label: option.label,
+    category: option.category,
+    picked: view.isStatusEnabled(option.category),
+  }));
+  const chosen = await vscode.window.showQuickPick(items, {
+    canPickMany: true,
+    title: 'Filter by status',
+    placeHolder: 'Choose which change types to show in the tree',
+  });
+  if (chosen) {
+    view.setStatusFilter(chosen.map((item) => item.category));
   }
 }
 

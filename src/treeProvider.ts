@@ -34,11 +34,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.changed.event;
 
+  constructor(private readonly extensionUri?: vscode.Uri) {}
+
   /** Populated once git finishes; fires a refresh so the tree re-renders. */
   setChanges(changes: ChangeSet): void {
     this.entries = changes.entries;
     this.collapsedPaths.clear();
     this.rebuild();
+  }
+
+  /** Re-render items without rebuilding structure — e.g. after a lazily-resolved description. */
+  refresh(): void {
+    this.changed.fire();
   }
 
   getChildren(node?: TreeNode): TreeNode[] {
@@ -171,7 +178,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       ? vscode.TreeItemCollapsibleState.Collapsed
       : vscode.TreeItemCollapsibleState.Expanded;
     const item = new vscode.TreeItem(node.name, state);
-    item.iconPath = vscode.ThemeIcon.Folder;
+    // item.iconPath = vscode.ThemeIcon.Folder;
     item.contextValue = 'folder';
     return item;
   }
@@ -179,9 +186,9 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private fileItem(node: TreeNode): vscode.TreeItem {
     const entry = node.entry!;
     const item = new vscode.TreeItem(node.name, vscode.TreeItemCollapsibleState.None);
-    item.description = describeEntry(entry);
-    item.iconPath = statusIcon(entry.status);
-    item.contextValue = 'file';
+    item.description = describeEntry(entry, node.moveRole);
+    item.iconPath = statusIcon(entry, node.moveRole);
+    item.contextValue = node.moveRole ? 'fileMove' : 'file';
     // Fires on click/Enter (not programmatic reveals) — pins a permanent editor.
     item.command = { command: 'deltaFlow.activate', title: 'Open', arguments: [node] };
     return item;

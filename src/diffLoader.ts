@@ -1,5 +1,4 @@
 import { ChangeEntry } from './changeModel';
-import { openDiff } from './diffCommand';
 
 /**
  * Throttles diff loading with a leading edge: a request loads immediately when
@@ -12,7 +11,7 @@ export class DiffLoader {
   private shown?: ChangeEntry;
   private lastRun = 0;
 
-  constructor(private readonly windowMs: number) {}
+  constructor(private readonly windowMs: number, private readonly open: (entry: ChangeEntry) => void) {}
 
   request(entry: ChangeEntry): void {
     if (entry === this.shown || this.timer) {
@@ -46,7 +45,7 @@ export class DiffLoader {
     }
     this.shown = entry;
     this.lastRun = Date.now();
-    void openDiff(entry);
+    this.open(entry);
   }
 
   private clearTimer(): void {

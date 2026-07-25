@@ -4,7 +4,7 @@ import { ChangeEntry, ChangeSet, ChangeStatus } from './changeModel';
 import { DiffSession } from './session';
 
 /** Loosened rename/copy thresholds so moved-and-edited files still pair up. */
-const SIMILARITY_ARGS = ['-M25', '-C25'];
+const SIMILARITY_ARGS = ['-M50', '-C50'];
 
 /** Runs git's own rename detection across the two temp trees and models the result. */
 export async function loadChanges(session: DiffSession): Promise<ChangeSet> {
@@ -26,6 +26,21 @@ export async function matchingPaths(session: DiffSession, regex: string): Promis
     }
   }
   return paths;
+}
+
+/**
+ * True when the two sides differ only in whitespace. Runs git's own diff with
+ * `--ignore-all-space --quiet`: exit 0 means nothing survives once whitespace is
+ * ignored, so (given the file is already known to differ) the change is cosmetic.
+ */
+export function isWhitespaceOnly(entry: ChangeEntry): Promise<boolean> {
+  if (!entry.leftAbs || !entry.rightAbs) {
+    return Promise.resolve(false);
+  }
+  const args = ['diff', '--no-index', '--ignore-all-space', '--quiet', '--', entry.leftAbs, entry.rightAbs];
+  return new Promise((resolve) => {
+    execFile('git', args, (err) => resolve(!err));
+  });
 }
 
 function runRawDiff(session: DiffSession, extraArgs: string[]): Promise<string> {

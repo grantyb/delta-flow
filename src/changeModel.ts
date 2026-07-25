@@ -13,6 +13,8 @@ export interface ChangeEntry {
   leftAbs?: string;
   /** Absolute path within the RIGHT tree; undefined for deleted files. */
   rightAbs?: string;
+  /** Lazily filled when the file is first opened: true if the sides differ only in whitespace. */
+  whitespaceOnly?: boolean;
 }
 
 /** The full set of changes for one diff session. */
