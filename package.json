@@ -28,7 +28,7 @@
           "id": "gitDirDiff.changes",
           "name": "Changed Files",
           "visibility": "visible",
-          "initialSize": 20
+          "initialSize": 1000
         }
       ]
     },
