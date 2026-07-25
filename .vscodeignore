@@ -1,0 +1,14 @@
+.vscode/**
+src/**
+fixtures/**
+tower/**
+out/**/*.map
+**/*.ts
+tsconfig.json
+demo.code-workspace
+.gitignore
+.gitattributes
+package-lock.json
+node_modules/**
+.git/**
+*.vsix

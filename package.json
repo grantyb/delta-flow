@@ -2,8 +2,13 @@
   "name": "git-dir-diff",
   "displayName": "Git Directory Diff",
   "description": "A read-only git directory diff viewer, usable as an external diff tool (e.g. from Tower) via git difftool --dir-diff.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "cactuslab",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cactuslab/git-dir-diff.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -40,6 +45,11 @@
       ]
     },
     "commands": [
+      {
+        "command": "gitDirDiff.installTowerIntegration",
+        "title": "Install Tower Integration",
+        "category": "Git Directory Diff"
+      },
       {
         "command": "gitDirDiff.openExternal",
         "title": "Open in External App",
@@ -198,11 +208,14 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --allow-star-activation"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.0.0",
     "typescript": "^5.4.0"
   }
 }

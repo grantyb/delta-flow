@@ -32,10 +32,27 @@ npm install
 npm run compile
 ```
 
-Then press F5 in VS Code to launch an Extension Development Host, or package with
-`vsce package`.
+Then press F5 in VS Code to launch an Extension Development Host.
 
-## Wire up as a git difftool
+## Package and install
+
+Build a `.vsix` and install it into VS Code:
+
+```sh
+npm run package                                  # -> git-dir-diff-<version>.vsix
+code --install-extension git-dir-diff-*.vsix --force
+```
+
+Or use the bundled VS Code tasks (Terminal → Run Task): **Package Extension**,
+**Install Extension (local)**, or **Redeploy** (packages and installs in one step).
+
+To register with Tower, run the **Git Directory Diff: Install Tower Integration**
+command from the Command Palette. It copies the launcher into Tower's
+`CompareTools` directory and adds the `CompareTools.plist` entry (preserving any
+existing tools), then you restart Tower and pick **VS Code Directory Diff** as the
+diff tool (Settings → Git Config).
+
+## Wire up as a git difftool (CLI, optional)
 
 ```ini
 # ~/.gitconfig
@@ -57,6 +74,10 @@ In Tower, select the custom tool and enable **Perform directory diff** (Settings
 
 ## Status
 
-Walking skeleton: expanded folder tree, rename/move detection, read-only diffs.
-Not yet handled: lazy content loading for very large diffs (see the `--no-index`
-provider swap discussed in design), binary files, and Tower packaging.
+Packaged extension: folder-hierarchy tree with rename/move detection, read-only
+diffs (text, image, and binary), keyboard navigation, path and change-content
+filters, and a one-command Tower installer. Not yet in the Marketplace.
+
+Before publishing, revisit the `*` activation event (used for an early panel
+reveal) — a Marketplace extension should prefer `onStartupFinished` plus
+`onCommand:` activations to avoid activating in every window.

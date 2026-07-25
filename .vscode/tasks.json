@@ -7,6 +7,32 @@
       "problemMatcher": "$tsc",
       "group": "build",
       "label": "npm: compile"
+    },
+    {
+      "label": "Package Extension",
+      "detail": "Compile and build a .vsix in the project root",
+      "type": "shell",
+      "command": "npx --yes @vscode/vsce package --allow-star-activation",
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Install Extension (local)",
+      "detail": "Install the newest .vsix into VS Code",
+      "type": "shell",
+      "command": "code --install-extension \"$(ls -t *.vsix | head -n1)\" --force",
+      "problemMatcher": []
+    },
+    {
+      "label": "Redeploy",
+      "detail": "Package then install the extension locally",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Package Extension", "Install Extension (local)"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     }
   ]
 }
