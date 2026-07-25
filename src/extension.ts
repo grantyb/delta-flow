@@ -5,8 +5,12 @@ import { openExternalEntry } from './diffCommand';
 import { TreeNode } from './fileTree';
 import { loadChanges } from './gitDiff';
 import { DiffSession, readSession } from './session';
+import { installTowerIntegration } from './towerSetup';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  // Available in every window so users can run it from a normal VS Code session.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitDirDiff.installTowerIntegration', () => installTower(context)));
   const session = readSession();
   if (!session) {
     return; // Not a diff window — stay dormant.
@@ -84,6 +88,18 @@ async function focusView(): Promise<void> {
     await vscode.commands.executeCommand('gitDirDiff.changes.focus');
   } catch {
     // The view may not be ready during very early startup; a later call wins.
+  }
+}
+
+async function installTower(context: vscode.ExtensionContext): Promise<void> {
+  try {
+    await installTowerIntegration(context.extensionPath);
+    void vscode.window.showInformationMessage(
+      'Tower integration installed. Restart Tower, then choose "VS Code Directory Diff" ' +
+      'as your diff tool (Settings → Git Config).');
+  } catch (err) {
+    void vscode.window.showErrorMessage(
+      `Could not install Tower integration: ${(err as Error).message}`);
   }
 }
 
