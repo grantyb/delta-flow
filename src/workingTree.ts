@@ -61,7 +61,7 @@ function launchDiff(extensionPath: string, repo: string, env: NodeJS.ProcessEnv,
   const args = ['-C', repo,
     '-c', `difftool.deltaFlowInline.cmd=${cmd}`,
     '-c', 'difftool.prompt=false',
-    'difftool', '--dir-diff', '--no-prompt', '--cached', '-t', 'deltaFlowInline', 'HEAD'];
+    'difftool', '--dir-diff', '--no-symlinks', '--no-prompt', '--cached', '-t', 'deltaFlowInline', 'HEAD'];
   execFile('git', args, { env }, (err) => {
     void fs.rm(indexFile, { force: true });
     if (err) {
