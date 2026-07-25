@@ -75,9 +75,10 @@ async function run(view: DiffView, session: DiffSession): Promise<void> {
   await focusView();
   const changes = await loadChanges(session);
   view.populate(changes);
+  await focusView(); // Re-assert in case the startup layout restore stole focus.
 }
 
-/** Reveal and expand our Changed Files section within the Explorer viewlet. */
+/** Reveal our Directory Diff container so it's what you land on, not the Explorer. */
 async function focusView(): Promise<void> {
   try {
     await vscode.commands.executeCommand('gitDirDiff.changes.focus');
