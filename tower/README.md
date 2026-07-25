@@ -16,16 +16,16 @@ merge mode:  <script> $LOCAL $REMOTE $BASE $MERGE_RESULT
 
 With `SupportsDiffChangeset` set to `true`, Tower passes `$LOCAL`/`$REMOTE` as two
 directory trees for the whole changeset and calls the script once — identical to
-`git difftool --dir-diff`. So `bin/git-dir-diff` doubles as the Tower launch
-script with no changes.
+`git difftool --dir-diff`. So `bin/delta-flow` doubles as the Tower launch script
+with no changes.
 
 ## Install
 
 1. Symlink the launcher into Tower's CompareTools directory:
 
    ```sh
-   ln -sfn "$PWD/bin/git-dir-diff" \
-     ~/Library/Application\ Support/com.fournova.Tower3/CompareTools/git-dir-diff.sh
+   ln -sfn "$PWD/bin/delta-flow" \
+     ~/Library/Application\ Support/com.fournova.Tower3/CompareTools/delta-flow.sh
    ```
 
 2. Add the entry from `CompareTools-entry.plist` to the `<array>` in
@@ -35,6 +35,6 @@ script with no changes.
 
 3. Validate: `plutil -lint .../CompareTools.plist`
 
-4. Restart Tower, then Settings → Git → **Diff Tool** → *VS Code Directory Diff*.
+4. Restart Tower, then Settings → Git → **Diff Tool** → *Delta Flow*.
    Because the tool supports changesets, the "Perform Directory Diff" checkbox is
    not needed.

@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 #
-# git difftool --dir-diff launcher for the Git Directory Diff VS Code extension.
+# git difftool --dir-diff launcher for the Delta Flow VS Code extension.
 #
-# git invokes this once with the two temp trees:  git-dir-diff "$LOCAL" "$REMOTE"
+# git invokes this once with the two temp trees:  delta-flow "$LOCAL" "$REMOTE"
 # We open a VS Code window whose workspace settings carry the two paths, then
 # block (via --wait) until the user closes it, so git keeps the temp trees alive.
 #
-# Set $GIT_DIR_DIFF_CODE to override the VS Code CLI location.
+# Set $DELTA_FLOW_CODE to override the VS Code CLI location.
 
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-  echo "usage: git-dir-diff <LEFT_DIR> <RIGHT_DIR>" >&2
+  echo "usage: delta-flow <LEFT_DIR> <RIGHT_DIR>" >&2
   exit 2
 fi
 
 # Tower and other GUI clients run with a minimal PATH, so probe known locations.
 find_code() {
   local candidate
-  for candidate in "${GIT_DIR_DIFF_CODE:-}" code /usr/local/bin/code \
+  for candidate in "${DELTA_FLOW_CODE:-}" code /usr/local/bin/code \
     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"; do
     if [[ -n "$candidate" ]] && command -v "$candidate" >/dev/null 2>&1; then
       echo "$candidate"
       return 0
     fi
   done
-  echo "error: could not find the VS Code CLI; set GIT_DIR_DIFF_CODE" >&2
+  echo "error: could not find the VS Code CLI; set DELTA_FLOW_CODE" >&2
   return 1
 }
 
@@ -40,7 +40,7 @@ open_dir_diff() {
 
   # An empty scratch folder anchors the workspace so --wait reliably holds the
   # window open; the diff paths ride in workspace settings.
-  workdir="$(mktemp -d "${TMPDIR:-/tmp}/git-dir-diff.XXXXXX")"
+  workdir="$(mktemp -d "${TMPDIR:-/tmp}/delta-flow.XXXXXX")"
   workspace="$workdir/session.code-workspace"
   # Expand $workdir now so cleanup works even though it is function-local.
   trap "rm -rf '$workdir'" EXIT
@@ -50,9 +50,9 @@ open_dir_diff() {
   # workspace file is hidden, so the Explorer shows only our Changed Files view.
   cat > "$workspace" <<EOF
 {
-  "folders": [{ "path": ".", "name": "Directory Diff" }],
+  "folders": [{ "path": ".", "name": "Delta Flow" }],
   "settings": {
-    "gitDirDiff.session": { "left": "$left", "right": "$right" },
+    "deltaFlow.session": { "left": "$left", "right": "$right" },
     "workbench.startupEditor": "none",
     "explorer.openEditors.visible": 0,
     "workbench.editor.enablePreview": true,

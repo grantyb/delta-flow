@@ -2,12 +2,12 @@ import * as vscode from 'vscode';
 import { ChangeEntry, ChangeStatus } from './changeModel';
 
 const STATUS_WORDS: Record<ChangeStatus, string> = {
-  A: 'added', M: 'modified', D: 'deleted', R: 'renamed', C: 'copied',
+  A: 'added', M: 'changed', D: 'deleted', R: 'renamed', C: 'copied',
 };
 
 const STATUS_ICONS: Record<ChangeStatus, [string, string]> = {
   A: ['diff-added', 'gitDecoration.addedResourceForeground'],
-  M: ['diff-modified', 'gitDecoration.modifiedResourceForeground'],
+  M: ['edit', 'gitDecoration.modifiedResourceForeground'],
   D: ['diff-removed', 'gitDecoration.deletedResourceForeground'],
   R: ['diff-renamed', 'gitDecoration.renamedResourceForeground'],
   C: ['diff-renamed', 'gitDecoration.renamedResourceForeground'],

@@ -183,7 +183,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.iconPath = statusIcon(entry.status);
     item.contextValue = 'file';
     // Fires on click/Enter (not programmatic reveals) — pins a permanent editor.
-    item.command = { command: 'gitDirDiff.activate', title: 'Open', arguments: [node] };
+    item.command = { command: 'deltaFlow.activate', title: 'Open', arguments: [node] };
     return item;
   }
 

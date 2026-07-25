@@ -15,9 +15,9 @@ interface TowerTool {
 const TOWER_ENTRY: TowerTool = {
   ApplicationIdentifier: 'com.microsoft.VSCode',
   ApplicationName: 'Visual Studio Code',
-  DisplayName: 'VS Code Directory Diff',
-  Identifier: 'vscode-dir-diff',
-  LaunchScript: 'git-dir-diff.sh',
+  DisplayName: 'Delta Flow',
+  Identifier: 'delta-flow',
+  LaunchScript: 'delta-flow.sh',
   SupportsDiffChangeset: true,
   SupportsMergeTool: false,
 };
@@ -45,8 +45,8 @@ function compareToolsDir(): string {
 }
 
 async function installLaunchScript(extensionPath: string, dir: string): Promise<void> {
-  const source = path.join(extensionPath, 'bin', 'git-dir-diff');
-  const dest = path.join(dir, 'git-dir-diff.sh');
+  const source = path.join(extensionPath, 'bin', 'delta-flow');
+  const dest = path.join(dir, 'delta-flow.sh');
   await fs.copyFile(source, dest);
   await fs.chmod(dest, 0o755);
 }
@@ -70,7 +70,7 @@ async function readPlist(plistPath: string): Promise<TowerTool[]> {
 }
 
 async function writePlist(plistPath: string, tools: TowerTool[]): Promise<void> {
-  const temp = path.join(os.tmpdir(), `git-dir-diff-plist-${process.pid}.json`);
+  const temp = path.join(os.tmpdir(), `delta-flow-plist-${process.pid}.json`);
   await fs.writeFile(temp, JSON.stringify(tools));
   try {
     await run('plutil', ['-convert', 'xml1', temp, '-o', plistPath]);

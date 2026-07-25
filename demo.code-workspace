@@ -5,7 +5,7 @@
     }
   ],
   "settings": {
-    "gitDirDiff.session": {
+    "deltaFlow.session": {
       "left": "fixtures/left",
       "right": "fixtures/right"
     }

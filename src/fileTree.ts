@@ -44,7 +44,7 @@ function childOf(parent: TreeNode, name: string, kind: NodeKind): TreeNode {
   return parent.children.get(name)!;
 }
 
-/** Collapses single-child folder chains (java → com → cactuslab ⇒ java/com/cactuslab). */
+/** Collapses single-child folder chains (java → com → grantyb ⇒ java/com/grantyb). */
 function compactChildren(node: TreeNode): void {
   const originals = [...node.children.values()];
   node.children.clear();

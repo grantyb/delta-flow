@@ -9,7 +9,7 @@ export interface DiffSession {
 
 /** Reads the diff session injected into workspace settings by the launcher. */
 export function readSession(): DiffSession | undefined {
-  const raw = vscode.workspace.getConfiguration('gitDirDiff').get<DiffSession>('session');
+  const raw = vscode.workspace.getConfiguration('deltaFlow').get<DiffSession>('session');
   if (!raw || !raw.left || !raw.right) {
     return undefined;
   }

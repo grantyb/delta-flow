@@ -25,7 +25,7 @@ export class DiffView {
   private current?: TreeNode;
 
   constructor(private readonly session: DiffSession) {
-    this.view = vscode.window.createTreeView('gitDirDiff.changes', {
+    this.view = vscode.window.createTreeView('deltaFlow.changes', {
       treeDataProvider: this.provider,
       showCollapseAll: false,
     });
@@ -258,7 +258,7 @@ export class DiffView {
 
   /** Drives which of the Collapse All / Expand All title buttons is shown. */
   private setCollapsedContext(collapsed: boolean): void {
-    void vscode.commands.executeCommand('setContext', 'gitDirDiff.collapsed', collapsed);
+    void vscode.commands.executeCommand('setContext', 'deltaFlow.collapsed', collapsed);
   }
 }
 

@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import { ChangeEntry, ChangeStatus } from './changeModel';
 
 /** Documents served under this scheme are inherently read-only. */
-export const SCHEME = 'git-dir-diff';
+export const SCHEME = 'delta-flow';
 
 /** Serves file content from the temp trees (and binary notes) as read-only documents. */
 export class DiffContentProvider implements vscode.TextDocumentContentProvider {

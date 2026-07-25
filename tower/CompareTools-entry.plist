@@ -5,11 +5,11 @@
 	<key>ApplicationName</key>
 	<string>Visual Studio Code</string>
 	<key>DisplayName</key>
-	<string>VS Code Directory Diff</string>
+	<string>Delta Flow</string>
 	<key>Identifier</key>
-	<string>vscode-dir-diff</string>
+	<string>delta-flow</string>
 	<key>LaunchScript</key>
-	<string>git-dir-diff.sh</string>
+	<string>delta-flow.sh</string>
 	<key>SupportsDiffChangeset</key>
 	<true/>
 	<key>SupportsMergeTool</key>

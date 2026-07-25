@@ -10,7 +10,7 @@ import { installTowerIntegration } from './towerSetup';
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // Available in every window so users can run it from a normal VS Code session.
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitDirDiff.installTowerIntegration', () => installTower(context)));
+    vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)));
   const session = readSession();
   if (!session) {
     return; // Not a diff window — stay dormant.
@@ -30,25 +30,25 @@ function registerContentProvider(context: vscode.ExtensionContext): void {
 
 function registerItemCommands(context: vscode.ExtensionContext, view: DiffView): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitDirDiff.activate', (node?: TreeNode) => view.activate(node)),
-    vscode.commands.registerCommand('gitDirDiff.openExternal', (node: TreeNode) =>
+    vscode.commands.registerCommand('deltaFlow.activate', (node?: TreeNode) => view.activate(node)),
+    vscode.commands.registerCommand('deltaFlow.openExternal', (node: TreeNode) =>
       node?.entry ? openExternalEntry(node.entry) : undefined));
 }
 
 function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitDirDiff.setFilter', () =>
+    vscode.commands.registerCommand('deltaFlow.setFilter', () =>
       promptFilter(view.patterns, (value) => view.setFilter(value))),
-    vscode.commands.registerCommand('gitDirDiff.searchChanges', () => promptSearch(view)),
-    vscode.commands.registerCommand('gitDirDiff.clearFilters', () => view.clearFilters()),
-    vscode.commands.registerCommand('gitDirDiff.collapseAll', () => view.collapseAll()),
-    vscode.commands.registerCommand('gitDirDiff.expandAll', () => view.expandAll()),
-    vscode.commands.registerCommand('gitDirDiff.next', () => view.selectNext()),
-    vscode.commands.registerCommand('gitDirDiff.previous', () => view.selectPrevious()),
-    vscode.commands.registerCommand('gitDirDiff.collapseOrParent', () => view.collapseOrParent()),
-    vscode.commands.registerCommand('gitDirDiff.expandOrChild', () => view.expandOrChild()),
-    vscode.commands.registerCommand('gitDirDiff.collapseSubtree', (node?: TreeNode) => view.collapseSubtree(node)),
-    vscode.commands.registerCommand('gitDirDiff.expandSubtree', (node?: TreeNode) => view.expandSubtree(node)));
+    vscode.commands.registerCommand('deltaFlow.searchChanges', () => promptSearch(view)),
+    vscode.commands.registerCommand('deltaFlow.clearFilters', () => view.clearFilters()),
+    vscode.commands.registerCommand('deltaFlow.collapseAll', () => view.collapseAll()),
+    vscode.commands.registerCommand('deltaFlow.expandAll', () => view.expandAll()),
+    vscode.commands.registerCommand('deltaFlow.next', () => view.selectNext()),
+    vscode.commands.registerCommand('deltaFlow.previous', () => view.selectPrevious()),
+    vscode.commands.registerCommand('deltaFlow.collapseOrParent', () => view.collapseOrParent()),
+    vscode.commands.registerCommand('deltaFlow.expandOrChild', () => view.expandOrChild()),
+    vscode.commands.registerCommand('deltaFlow.collapseSubtree', (node?: TreeNode) => view.collapseSubtree(node)),
+    vscode.commands.registerCommand('deltaFlow.expandSubtree', (node?: TreeNode) => view.expandSubtree(node)));
 }
 
 async function promptFilter(current: string, apply: (value: string) => void): Promise<void> {
@@ -82,10 +82,10 @@ async function run(view: DiffView, session: DiffSession): Promise<void> {
   await focusView(); // Re-assert in case the startup layout restore stole focus.
 }
 
-/** Reveal our Directory Diff container so it's what you land on, not the Explorer. */
+/** Reveal Delta Flow so it's what you land on, not the Explorer. */
 async function focusView(): Promise<void> {
   try {
-    await vscode.commands.executeCommand('gitDirDiff.changes.focus');
+    await vscode.commands.executeCommand('deltaFlow.changes.focus');
   } catch {
     // The view may not be ready during very early startup; a later call wins.
   }
@@ -95,7 +95,7 @@ async function installTower(context: vscode.ExtensionContext): Promise<void> {
   try {
     await installTowerIntegration(context.extensionPath);
     void vscode.window.showInformationMessage(
-      'Tower integration installed. Restart Tower, then choose "VS Code Directory Diff" ' +
+      'Tower integration installed. Restart Tower, then choose "Delta Flow" ' +
       'as your diff tool (Settings → Git Config).');
   } catch (err) {
     void vscode.window.showErrorMessage(

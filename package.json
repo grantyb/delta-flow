@@ -1,14 +1,21 @@
 {
-  "name": "git-dir-diff",
-  "displayName": "Git Directory Diff",
-  "description": "A read-only git directory diff viewer, usable as an external diff tool (e.g. from Tower) via git difftool --dir-diff.",
+  "name": "delta-flow",
+  "displayName": "Delta Flow",
+  "description": "The directory diff viewer that lives where you already work: VS Code, Git, and Tower.",
   "version": "0.1.0",
-  "publisher": "cactuslab",
+  "publisher": "grantyb",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cactuslab/git-dir-diff.git"
+    "url": "https://github.com/grantyb/delta-flow.git"
   },
+  "keywords": [
+    "git",
+    "diff",
+    "directory diff",
+    "tower",
+    "changeset"
+  ],
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -30,178 +37,178 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "gitDirDiff",
-          "title": "Directory Diff",
-          "icon": "media/diff.svg"
+          "id": "deltaFlow",
+          "title": "Delta Flow",
+          "icon": "media/delta-flow.svg"
         }
       ]
     },
     "views": {
-      "gitDirDiff": [
+      "deltaFlow": [
         {
-          "id": "gitDirDiff.changes",
+          "id": "deltaFlow.changes",
           "name": "Changed Files"
         }
       ]
     },
     "commands": [
       {
-        "command": "gitDirDiff.installTowerIntegration",
+        "command": "deltaFlow.installTowerIntegration",
         "title": "Install Tower Integration",
-        "category": "Git Directory Diff"
+        "category": "Delta Flow"
       },
       {
-        "command": "gitDirDiff.openExternal",
+        "command": "deltaFlow.openExternal",
         "title": "Open in External App",
-        "category": "Git Directory Diff"
+        "category": "Delta Flow"
       },
       {
-        "command": "gitDirDiff.setFilter",
+        "command": "deltaFlow.setFilter",
         "title": "Filter Paths",
-        "category": "Git Directory Diff",
+        "category": "Delta Flow",
         "icon": "$(filter)"
       },
       {
-        "command": "gitDirDiff.searchChanges",
+        "command": "deltaFlow.searchChanges",
         "title": "Search Changes",
-        "category": "Git Directory Diff",
+        "category": "Delta Flow",
         "icon": "$(search)"
       },
       {
-        "command": "gitDirDiff.clearFilters",
+        "command": "deltaFlow.clearFilters",
         "title": "Filter: Clear",
-        "category": "Git Directory Diff",
+        "category": "Delta Flow",
         "icon": "$(clear-all)"
       },
       {
-        "command": "gitDirDiff.collapseAll",
+        "command": "deltaFlow.collapseAll",
         "title": "Collapse All",
-        "category": "Git Directory Diff",
+        "category": "Delta Flow",
         "icon": "$(collapse-all)"
       },
       {
-        "command": "gitDirDiff.expandAll",
+        "command": "deltaFlow.expandAll",
         "title": "Expand All",
-        "category": "Git Directory Diff",
+        "category": "Delta Flow",
         "icon": "$(expand-all)"
       },
       {
-        "command": "gitDirDiff.next",
+        "command": "deltaFlow.next",
         "title": "Next Changed File",
-        "category": "Git Directory Diff"
+        "category": "Delta Flow"
       },
       {
-        "command": "gitDirDiff.previous",
+        "command": "deltaFlow.previous",
         "title": "Previous Changed File",
-        "category": "Git Directory Diff"
+        "category": "Delta Flow"
       },
       {
-        "command": "gitDirDiff.expandSubtree",
+        "command": "deltaFlow.expandSubtree",
         "title": "Expand Folder Recursively",
-        "category": "Git Directory Diff"
+        "category": "Delta Flow"
       },
       {
-        "command": "gitDirDiff.collapseSubtree",
+        "command": "deltaFlow.collapseSubtree",
         "title": "Collapse Folder Recursively",
-        "category": "Git Directory Diff"
+        "category": "Delta Flow"
       }
     ],
     "keybindings": [
       {
-        "command": "gitDirDiff.next",
+        "command": "deltaFlow.next",
         "key": "down",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.previous",
+        "command": "deltaFlow.previous",
         "key": "up",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.collapseOrParent",
+        "command": "deltaFlow.collapseOrParent",
         "key": "left",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.expandOrChild",
+        "command": "deltaFlow.expandOrChild",
         "key": "right",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.collapseSubtree",
+        "command": "deltaFlow.collapseSubtree",
         "key": "shift+left",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.expandSubtree",
+        "command": "deltaFlow.expandSubtree",
         "key": "shift+right",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.setFilter",
+        "command": "deltaFlow.setFilter",
         "key": "/",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "gitDirDiff.searchChanges",
+        "command": "deltaFlow.searchChanges",
         "key": "ctrl+f",
         "mac": "cmd+f",
-        "when": "focusedView == gitDirDiff.changes"
+        "when": "focusedView == deltaFlow.changes"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "gitDirDiff.setFilter",
-          "when": "view == gitDirDiff.changes",
+          "command": "deltaFlow.setFilter",
+          "when": "view == deltaFlow.changes",
           "group": "navigation@1"
         },
         {
-          "command": "gitDirDiff.searchChanges",
-          "when": "view == gitDirDiff.changes",
+          "command": "deltaFlow.searchChanges",
+          "when": "view == deltaFlow.changes",
           "group": "navigation@2"
         },
         {
-          "command": "gitDirDiff.clearFilters",
-          "when": "view == gitDirDiff.changes",
+          "command": "deltaFlow.clearFilters",
+          "when": "view == deltaFlow.changes",
           "group": "navigation@3"
         },
         {
-          "command": "gitDirDiff.collapseAll",
-          "when": "view == gitDirDiff.changes && !gitDirDiff.collapsed",
+          "command": "deltaFlow.collapseAll",
+          "when": "view == deltaFlow.changes && !deltaFlow.collapsed",
           "group": "navigation@3"
         },
         {
-          "command": "gitDirDiff.expandAll",
-          "when": "view == gitDirDiff.changes && gitDirDiff.collapsed",
+          "command": "deltaFlow.expandAll",
+          "when": "view == deltaFlow.changes && deltaFlow.collapsed",
           "group": "navigation@3"
         }
       ],
       "view/item/context": [
         {
-          "command": "gitDirDiff.openExternal",
-          "when": "view == gitDirDiff.changes && viewItem == file",
+          "command": "deltaFlow.openExternal",
+          "when": "view == deltaFlow.changes && viewItem == file",
           "group": "navigation"
         },
         {
-          "command": "gitDirDiff.expandSubtree",
-          "when": "view == gitDirDiff.changes && viewItem == folder",
+          "command": "deltaFlow.expandSubtree",
+          "when": "view == deltaFlow.changes && viewItem == folder",
           "group": "navigation@1"
         },
         {
-          "command": "gitDirDiff.collapseSubtree",
-          "when": "view == gitDirDiff.changes && viewItem == folder",
+          "command": "deltaFlow.collapseSubtree",
+          "when": "view == deltaFlow.changes && viewItem == folder",
           "group": "navigation@2"
         }
       ]
     },
     "configuration": {
-      "title": "Git Directory Diff",
+      "title": "Delta Flow",
       "properties": {
-        "gitDirDiff.session": {
+        "deltaFlow.session": {
           "type": "object",
           "default": null,
-          "description": "Internal: the LEFT/RIGHT temporary directories for the current diff session, injected by the git-dir-diff launcher."
+          "description": "Internal: the LEFT/RIGHT temporary directories for the current diff session, injected by the Delta Flow launcher."
         }
       }
     }
