@@ -46,6 +46,13 @@
     "views": {
       "deltaFlow": [
         {
+          "id": "deltaFlow.filters",
+          "name": "Filters",
+          "icon": "media/delta-flow.svg",
+          "type": "webview",
+          "visibility": "collapsed"
+        },
+        {
           "id": "deltaFlow.changes",
           "name": "Changed Files",
           "icon": "media/delta-flow.svg"
@@ -75,28 +82,62 @@
         "icon": "$(arrow-swap)"
       },
       {
-        "command": "deltaFlow.setFilter",
-        "title": "Filter Paths",
-        "category": "Delta Flow",
-        "icon": "$(filter)"
+        "command": "deltaFlow.focusPathFilter",
+        "title": "Focus Path Filter",
+        "category": "Delta Flow"
       },
       {
-        "command": "deltaFlow.searchChanges",
-        "title": "Search Changes",
-        "category": "Delta Flow",
-        "icon": "$(search)"
+        "command": "deltaFlow.focusSearch",
+        "title": "Focus Change Search",
+        "category": "Delta Flow"
       },
       {
-        "command": "deltaFlow.filterStatus",
-        "title": "Filter by Status",
+        "command": "deltaFlow.hideModified",
+        "title": "Hide Modified Files",
         "category": "Delta Flow",
-        "icon": "$(list-filter)"
+        "icon": "$(diff-modified)"
       },
       {
-        "command": "deltaFlow.clearFilters",
-        "title": "Filter: Clear",
+        "command": "deltaFlow.showModified",
+        "title": "Show Modified Files",
         "category": "Delta Flow",
-        "icon": "$(clear-all)"
+        "icon": "$(diff-ignored)"
+      },
+      {
+        "command": "deltaFlow.hideAdded",
+        "title": "Hide Added Files",
+        "category": "Delta Flow",
+        "icon": "$(diff-added)"
+      },
+      {
+        "command": "deltaFlow.showAdded",
+        "title": "Show Added Files",
+        "category": "Delta Flow",
+        "icon": "$(diff-ignored)"
+      },
+      {
+        "command": "deltaFlow.hideDeleted",
+        "title": "Hide Deleted Files",
+        "category": "Delta Flow",
+        "icon": "$(diff-removed)"
+      },
+      {
+        "command": "deltaFlow.showDeleted",
+        "title": "Show Deleted Files",
+        "category": "Delta Flow",
+        "icon": "$(diff-ignored)"
+      },
+      {
+        "command": "deltaFlow.hideRenamed",
+        "title": "Hide Renamed / Copied Files",
+        "category": "Delta Flow",
+        "icon": "$(diff-renamed)"
+      },
+      {
+        "command": "deltaFlow.showRenamed",
+        "title": "Show Renamed / Copied Files",
+        "category": "Delta Flow",
+        "icon": "$(diff-ignored)"
       },
       {
         "command": "deltaFlow.collapseAll",
@@ -173,12 +214,12 @@
         "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "deltaFlow.setFilter",
+        "command": "deltaFlow.focusPathFilter",
         "key": "/",
         "when": "focusedView == deltaFlow.changes"
       },
       {
-        "command": "deltaFlow.searchChanges",
+        "command": "deltaFlow.focusSearch",
         "key": "ctrl+f",
         "mac": "cmd+f",
         "when": "focusedView == deltaFlow.changes"
@@ -187,34 +228,54 @@
     "menus": {
       "view/title": [
         {
-          "command": "deltaFlow.setFilter",
-          "when": "view == deltaFlow.changes",
+          "command": "deltaFlow.hideModified",
+          "when": "view == deltaFlow.filters && deltaFlow.status.M",
           "group": "navigation@1"
         },
         {
-          "command": "deltaFlow.searchChanges",
-          "when": "view == deltaFlow.changes",
+          "command": "deltaFlow.showModified",
+          "when": "view == deltaFlow.filters && !deltaFlow.status.M",
+          "group": "navigation@1"
+        },
+        {
+          "command": "deltaFlow.hideAdded",
+          "when": "view == deltaFlow.filters && deltaFlow.status.A",
           "group": "navigation@2"
         },
         {
-          "command": "deltaFlow.filterStatus",
-          "when": "view == deltaFlow.changes",
+          "command": "deltaFlow.showAdded",
+          "when": "view == deltaFlow.filters && !deltaFlow.status.A",
+          "group": "navigation@2"
+        },
+        {
+          "command": "deltaFlow.hideDeleted",
+          "when": "view == deltaFlow.filters && deltaFlow.status.D",
           "group": "navigation@3"
         },
         {
-          "command": "deltaFlow.clearFilters",
-          "when": "view == deltaFlow.changes",
+          "command": "deltaFlow.showDeleted",
+          "when": "view == deltaFlow.filters && !deltaFlow.status.D",
+          "group": "navigation@3"
+        },
+        {
+          "command": "deltaFlow.hideRenamed",
+          "when": "view == deltaFlow.filters && deltaFlow.status.RC",
+          "group": "navigation@4"
+        },
+        {
+          "command": "deltaFlow.showRenamed",
+          "when": "view == deltaFlow.filters && !deltaFlow.status.RC",
           "group": "navigation@4"
         },
         {
           "command": "deltaFlow.collapseAll",
           "when": "view == deltaFlow.changes && !deltaFlow.collapsed",
-          "group": "navigation@5"
+          "group": "navigation@1"
         },
         {
           "command": "deltaFlow.expandAll",
           "when": "view == deltaFlow.changes && deltaFlow.collapsed",
-          "group": "navigation@5"
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [

@@ -4,6 +4,7 @@ import { openDiff } from './diffCommand';
 import { DiffLoader } from './diffLoader';
 import { PathFilter } from './filter';
 import { TreeNode } from './fileTree';
+import { FilterPanel, FilterState, FocusField } from './filterPanel';
 import { matchingPaths } from './gitDiff';
 import { DiffSession } from './session';
 import { StatusCategory, StatusFilter } from './statusFilter';
@@ -21,31 +22,47 @@ export class DiffView {
   private changes = new ChangeSet([]);
   private visible = new ChangeSet([]);
   private filter = new PathFilter();
+  private readonly statusEnabled = new Set<StatusCategory>(StatusFilter.options.map((option) => option.category));
   private statusFilter = new StatusFilter();
   private search = '';
   private searchMatches?: Set<string>;
   private current?: TreeNode;
 
-  constructor(private readonly session: DiffSession, extensionUri?: vscode.Uri) {
+  private readonly panel: FilterPanel;
+
+  constructor(private readonly session: DiffSession, extensionUri: vscode.Uri) {
     this.provider = new ChangesTreeProvider(extensionUri);
+    this.panel = new FilterPanel(extensionUri, (state) => void this.applyFilterState(state), () => this.filterState());
     this.view = vscode.window.createTreeView('deltaFlow.changes', {
       treeDataProvider: this.provider,
       showCollapseAll: false,
     });
     this.view.message = 'Loading changes…';
     this.disposables.push(
+      vscode.window.registerWebviewViewProvider('deltaFlow.filters', this.panel,
+        { webviewOptions: { retainContextWhenHidden: true } }),
       this.view.onDidChangeSelection((e) => this.onSelectionChanged(e.selection)),
       this.view.onDidCollapseElement((e) => this.provider.onCollapsed(e.element)),
       this.view.onDidExpandElement((e) => this.onExpanded(e.element)));
     this.setCollapsedContext(false);
+    this.statusEnabled.forEach((category) => this.syncStatusContext(category));
   }
 
-  get patterns(): string {
-    return this.filter.patterns;
+  /** Title-bar status toggles: flip one change type in or out of the tree. */
+  toggleStatus(category: StatusCategory): void {
+    if (this.statusEnabled.has(category)) {
+      this.statusEnabled.delete(category);
+    } else {
+      this.statusEnabled.add(category);
+    }
+    this.statusFilter = new StatusFilter(this.statusEnabled);
+    this.syncStatusContext(category);
+    this.render();
   }
 
-  get searchText(): string {
-    return this.search;
+  /** Drives which of the show/hide title-bar icons is shown for this status. */
+  private syncStatusContext(category: StatusCategory): void {
+    void vscode.commands.executeCommand('setContext', `deltaFlow.status.${category}`, this.statusEnabled.has(category));
   }
 
   populate(changes: ChangeSet): void {
@@ -54,43 +71,38 @@ export class DiffView {
     this.autoOpenSingle();
   }
 
-  setFilter(patterns: string): void {
-    this.filter = new PathFilter(patterns);
-    this.render();
+  /** Move keyboard focus into one of the filter panel's inputs. */
+  focusFilter(field: FocusField): void {
+    this.panel.focus(field);
   }
 
-  isStatusEnabled(category: StatusCategory): boolean {
-    return this.statusFilter.has(category);
+  /** The panel's current text values, used to seed the form. */
+  private filterState(): FilterState {
+    return { patterns: this.filter.patterns, search: this.search };
   }
 
-  setStatusFilter(categories: StatusCategory[]): void {
-    this.statusFilter = new StatusFilter(categories);
-    this.render();
-  }
-
-  clearFilters(): void {
-    this.filter = new PathFilter();
-    this.statusFilter = new StatusFilter();
-    this.search = '';
-    this.searchMatches = undefined;
+  /** Applies the path/search filters from the panel, re-running the search only when it changed. */
+  private async applyFilterState(state: FilterState): Promise<void> {
+    this.filter = new PathFilter(state.patterns);
+    if (state.search.trim() !== this.search) {
+      await this.updateSearchMatches(state.search);
+    }
     this.render();
   }
 
   /** Restricts the tree to files whose changed lines match the pickaxe regex. */
-  async setSearch(pattern: string): Promise<void> {
+  private async updateSearchMatches(pattern: string): Promise<void> {
     this.search = pattern.trim();
     if (!this.search) {
       this.searchMatches = undefined;
-      this.render();
       return;
     }
     try {
       this.searchMatches = await matchingPaths(this.session, this.search);
     } catch {
       void vscode.window.showWarningMessage(`Invalid change search: ${this.search}`);
-      return;
+      this.searchMatches = undefined;
     }
-    this.render();
   }
 
   collapseAll(): void {
