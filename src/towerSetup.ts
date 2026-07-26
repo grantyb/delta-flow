@@ -11,7 +11,7 @@ interface TowerTool {
   [key: string]: unknown;
 }
 
-/** The CompareTools.plist entry that registers this extension with Tower. */
+/** The CompareTools.plist entry that registers this extension with Tower for Mac. */
 const TOWER_ENTRY: TowerTool = {
   ApplicationIdentifier: 'com.microsoft.VSCode',
   ApplicationName: 'Visual Studio Code',
@@ -23,23 +23,29 @@ const TOWER_ENTRY: TowerTool = {
 };
 
 /**
- * Installs the launcher and a CompareTools.plist entry so Tower for Mac can use
- * this extension as its diff tool. Returns the CompareTools directory.
+ * Registers this extension as Tower's diff tool, using whichever mechanism the
+ * current platform's Tower supports. Returns the directory that was written to.
  */
-export async function installTowerIntegration(
-  extensionPath: string,
-  dir: string = compareToolsDir(),
-): Promise<string> {
-  if (process.platform !== 'darwin') {
-    throw new Error('Tower integration is only available on macOS.');
+export async function installTowerIntegration(extensionPath: string, dir?: string): Promise<string> {
+  if (process.platform === 'darwin') {
+    return installMac(extensionPath, dir ?? macCompareToolsDir());
   }
+  if (process.platform === 'win32') {
+    return installWindows(extensionPath, dir ?? winCompareToolsDir());
+  }
+  throw new Error('Tower integration is only available on macOS and Windows.');
+}
+
+// --- macOS: a launch script plus a CompareTools.plist entry ---
+
+async function installMac(extensionPath: string, dir: string): Promise<string> {
   await fs.mkdir(dir, { recursive: true });
   await installLaunchScript(extensionPath, dir);
   await mergePlistEntry(path.join(dir, 'CompareTools.plist'));
   return dir;
 }
 
-function compareToolsDir(): string {
+function macCompareToolsDir(): string {
   return path.join(os.homedir(), 'Library', 'Application Support',
     'com.fournova.Tower3', 'CompareTools');
 }
@@ -49,6 +55,31 @@ async function installLaunchScript(extensionPath: string, dir: string): Promise<
   const dest = path.join(dir, 'delta-flow.sh');
   await fs.copyFile(source, dest);
   await fs.chmod(dest, 0o755);
+}
+
+// --- Windows: a per-tool CompareTool JSON that runs the PowerShell launcher ---
+
+async function installWindows(extensionPath: string, dir: string): Promise<string> {
+  await fs.mkdir(dir, { recursive: true });
+  const launcher = path.join(dir, 'delta-flow.ps1');
+  await fs.copyFile(path.join(extensionPath, 'bin', 'delta-flow.ps1'), launcher);
+  const config = {
+    DisplayName: 'Delta Flow',
+    SupportsDiffChangeset: true,
+    SupportsDirectoryDiff: true,
+    DiffToolArguments: `-NoProfile -ExecutionPolicy Bypass -File "${launcher}" "$LOCAL" "$REMOTE"`,
+    ApplicationPaths: [
+      '%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+      'powershell.exe',
+    ],
+  };
+  await fs.writeFile(path.join(dir, 'delta-flow.json'), JSON.stringify(config, null, 2));
+  return dir;
+}
+
+function winCompareToolsDir(): string {
+  const base = process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local');
+  return path.join(base, 'fournova', 'Tower', 'Settings', 'CompareTools');
 }
 
 /** Adds our entry to the plist, preserving any other tools already configured. */

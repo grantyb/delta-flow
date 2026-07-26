@@ -1,25 +1,49 @@
 # Tower integration
 
-Tower for Mac does **not** use git's `diff.tool` config. It has its own plugin
-system: a `CompareTools.plist` plus a launch script under
+Tower does **not** use git's `diff.tool` config — it has its own plugin system,
+and it differs by platform:
 
-```
-~/Library/Application Support/com.fournova.Tower3/CompareTools/
-```
+- **Mac:** a `CompareTools.plist` plus a launch script under
+  `~/Library/Application Support/com.fournova.Tower3/CompareTools/`.
+- **Windows:** a per-tool `*.json` file under
+  `%LOCALAPPDATA%\fournova\Tower\Settings\CompareTools\`.
 
-Tower invokes the launch script with the same contract as `git difftool`:
+Delta Flow ships a VS Code command that detects your OS and writes the right one,
+so most people never touch either by hand.
 
-```
-diff mode:   <script> $LOCAL $REMOTE [$RELATIVE_PATH]
-merge mode:  <script> $LOCAL $REMOTE $BASE $MERGE_RESULT
-```
+## Install (recommended)
 
-With `SupportsDiffChangeset` set to `true`, Tower passes `$LOCAL`/`$REMOTE` as two
-directory trees for the whole changeset and calls the script once — identical to
-`git difftool --dir-diff`. So `bin/delta-flow` doubles as the Tower launch script
-with no changes.
+1. Install the Delta Flow extension in VS Code.
+2. Open the Command Palette (`⌘⇧P` on Mac, `Ctrl+Shift+P` on Windows) and run
+   **Delta Flow: Install Tower Integration**.
 
-## Install
+   On **Mac** it copies the launcher to `delta-flow.sh` and adds/updates the
+   plist entry (leaving your other diff tools untouched). On **Windows** it copies
+   `delta-flow.ps1` and writes `delta-flow.json` next to it. It's safe to re-run
+   after upgrading the extension.
+3. Restart Tower, then go to Settings → Git → **Diff Tool** → *Delta Flow*.
+
+   Because the tool supports changesets, the "Perform Directory Diff" checkbox is
+   not needed.
+
+## How it works
+
+Tower invokes the tool with the same contract as `git difftool --dir-diff`: it
+hands over two directory trees for the whole changeset (`$LOCAL` = old,
+`$REMOTE` = new) and calls the launcher once. The launcher opens a VS Code window
+whose workspace settings carry the two paths and blocks (via `--wait`) until you
+close it, keeping the temp trees alive.
+
+- **Mac** runs `bin/delta-flow` (bash) directly as the plist `LaunchScript`.
+- **Windows** has no launch-script concept, so the JSON points `ApplicationPaths`
+  at `powershell.exe` and passes `DiffToolArguments` that run `bin/delta-flow.ps1`
+  — the PowerShell equivalent of the bash launcher.
+
+## Manual install
+
+If you'd rather not use the command (or want to see exactly what it does):
+
+### Mac
 
 1. Symlink the launcher into Tower's CompareTools directory:
 
@@ -36,5 +60,27 @@ with no changes.
 3. Validate: `plutil -lint .../CompareTools.plist`
 
 4. Restart Tower, then Settings → Git → **Diff Tool** → *Delta Flow*.
-   Because the tool supports changesets, the "Perform Directory Diff" checkbox is
-   not needed.
+
+### Windows
+
+1. Copy `bin\delta-flow.ps1` into
+   `%LOCALAPPDATA%\fournova\Tower\Settings\CompareTools\`.
+
+2. Create `delta-flow.json` in that same folder. Replace the `-File` path with
+   the **absolute** path to where you copied `delta-flow.ps1` (environment
+   variables aren't reliably expanded inside `DiffToolArguments`, so spell it out):
+
+   ```json
+   {
+     "DisplayName": "Delta Flow",
+     "SupportsDiffChangeset": true,
+     "SupportsDirectoryDiff": true,
+     "DiffToolArguments": "-NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\<you>\\AppData\\Local\\fournova\\Tower\\Settings\\CompareTools\\delta-flow.ps1\" \"$LOCAL\" \"$REMOTE\"",
+     "ApplicationPaths": [
+       "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+       "powershell.exe"
+     ]
+   }
+   ```
+
+3. Restart Tower, then Settings → Git → **Diff Tool** → *Delta Flow*.
