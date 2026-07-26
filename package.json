@@ -24,6 +24,7 @@
     "Other"
   ],
   "main": "./out/extension.js",
+  "icon": "media/delta-flow-icon.png",
   "activationEvents": [
     "workspaceContains:.delta-flow"
   ],
