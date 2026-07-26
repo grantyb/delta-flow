@@ -9,6 +9,11 @@
     "type": "git",
     "url": "https://github.com/grantyb/delta-flow.git"
   },
+  "homepage": "https://github.com/grantyb/delta-flow",
+  "galleryBanner": {
+    "color": "#087A4B",
+    "theme": "dark"
+  },
   "keywords": [
     "git",
     "diff",
