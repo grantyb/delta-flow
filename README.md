@@ -23,9 +23,17 @@ then select a file to open its diff in VS Code.
 Delta Flow opens the current working-tree changes as a navigable directory diff
 in a new VS Code window.
 
+To review an open GitHub pull request, run **Delta Flow: Diff Pull Request** and
+choose one from the repository's list. This requires the
+[GitHub CLI](https://cli.github.com/) to be installed and authenticated.
+Pull requests targeting the checked-out branch are marked and shown first. Set
+`deltaFlow.pullRequestGrouping` to group the picker by author, draft status, or
+base branch.
+
 ## Highlights
 
 - A focused Changed Files tree for the whole Git changeset
+- A pull request picker for comparing an open PR with its target branch
 - Rename, copy, and move detection powered by Git
 - Read-only diffs for temporary Git/Tower directory snapshots
 - Text, image, and binary-aware diff handling

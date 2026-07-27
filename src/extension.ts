@@ -4,6 +4,7 @@ import { DiffView } from './diffView';
 import { openExternalEntry } from './diffCommand';
 import { TreeNode } from './fileTree';
 import { loadChanges } from './gitDiff';
+import { diffPullRequest } from './pullRequests';
 import { DiffSession, readSession } from './session';
 import { StatusCategory } from './statusFilter';
 import { installTowerIntegration } from './towerSetup';
@@ -13,7 +14,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Available in every window so users can run them from a normal VS Code session.
   context.subscriptions.push(
     vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)),
-    vscode.commands.registerCommand('deltaFlow.diffWorkingTree', () => diffWorkingTree(context.extensionPath)));
+    vscode.commands.registerCommand('deltaFlow.diffWorkingTree', () => diffWorkingTree(context.extensionPath)),
+    vscode.commands.registerCommand('deltaFlow.diffPullRequest', () => diffPullRequest(context.extensionPath)));
   const session = readSession();
   if (!session) {
     return; // Not a diff window — stay dormant.

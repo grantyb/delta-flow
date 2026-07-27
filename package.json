@@ -77,6 +77,11 @@
         "category": "Delta Flow"
       },
       {
+        "command": "deltaFlow.diffPullRequest",
+        "title": "Diff Pull Request",
+        "category": "Delta Flow"
+      },
+      {
         "command": "deltaFlow.openExternal",
         "title": "Open in External App",
         "category": "Delta Flow"
@@ -314,6 +319,23 @@
           "type": "object",
           "default": null,
           "description": "Internal: the LEFT/RIGHT temporary directories for the current diff session, injected by the Delta Flow launcher."
+        },
+        "deltaFlow.pullRequestGrouping": {
+          "type": "string",
+          "enum": [
+            "none",
+            "author",
+            "draftStatus",
+            "baseBranch"
+          ],
+          "enumDescriptions": [
+            "Show a single list, with pull requests targeting the current branch first.",
+            "Group pull requests by the user who opened them.",
+            "Group pull requests by ready-for-review or draft status.",
+            "Group pull requests by their target branch."
+          ],
+          "default": "none",
+          "description": "Controls how pull requests are grouped in the Delta Flow pull request picker."
         }
       }
     }
