@@ -5,6 +5,8 @@ Tower.
 
 ![Delta Flow browsing a directory diff](media/delta-flow-demo.gif)
 
+[Release notes](RELEASE_NOTES.md)
+
 Delta Flow turns a Git directory diff into a clear, read-only file tree inside
 VS Code. It is built for the moments when a line-by-line diff is too narrow:
 large refactors, migrations, file moves, generated changes, and changesets where
@@ -29,6 +31,8 @@ choose one from the repository's list. This requires the
 Pull requests targeting the checked-out branch are marked and shown first. Set
 `deltaFlow.pullRequestGrouping` to group the picker by author, draft status, or
 base branch.
+
+![Choosing and opening a GitHub pull request in Delta Flow](media/delta-flow-pr-demo.gif)
 
 ## Highlights
 
