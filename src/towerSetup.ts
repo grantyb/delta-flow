@@ -6,7 +6,7 @@ import * as path from 'path';
 
 const run = promisify(execFile);
 
-export const TOWER_INTEGRATION_VERSION = '0.1.0';
+export const TOWER_INTEGRATION_VERSION = '0.1.1';
 const VERSION_PATTERN = /DELTA_FLOW_TOWER_INTEGRATION_VERSION=([^\s]+)/;
 
 export type TowerIntegrationStatus =
