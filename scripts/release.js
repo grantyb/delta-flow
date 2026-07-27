@@ -49,6 +49,21 @@ function publish() {
   }
 }
 
+function releaseTagName(version, date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `release/${year}/${month}/v${version}`;
+}
+
+function tagRelease(version) {
+  const tag = releaseTagName(version);
+  const result = spawnSync('git', ['tag', tag], { cwd: root, stdio: 'inherit' });
+  if (result.status !== 0) {
+    throw new Error(`Published ${version}, but could not create Git tag ${tag}`);
+  }
+  console.log(`Git tag created: ${tag}`);
+}
+
 async function main() {
   const current = currentVersion();
   const version = await promptVersion(nextPatch(current));
@@ -61,6 +76,7 @@ async function main() {
   writeVersion(version);
   console.log(`package.json version set to ${version}`);
   publish();
+  tagRelease(version);
 }
 
 if (require.main === module) {
@@ -70,4 +86,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { nextPatch };
+module.exports = { nextPatch, releaseTagName };

@@ -8,6 +8,9 @@ Run `npm run release`. It prompts for the new version (defaulting to the next
 patch), writes it into `package.json`, then runs `vsce publish`. Publishing
 triggers `vscode:prepublish` → `compile`, which regenerates the integration
 version markers (see below), so a single prompt keeps everything in sync.
+After publishing succeeds, the script creates a lightweight Git tag named
+`release/YYYY/MM/v<version>` using the local release date. A failed publish does
+not create a tag.
 
 ## Tower integration version is generated — don't hand-edit it
 

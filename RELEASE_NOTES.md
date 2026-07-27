@@ -53,3 +53,8 @@ The PR picker requires an installed and authenticated
 - Uninstalling the VS Code extension also removes the Tower integration after
   VS Code restarts.
 
+### Release workflow
+
+- After a successful `npm run release`, the release script creates a
+  lightweight tag named `release/YYYY/MM/v<version>` using the local release
+  date.
