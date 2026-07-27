@@ -15,6 +15,11 @@ export type TowerIntegrationStatus =
   | 'synchronized'
   | 'unsupported';
 
+export type TowerIntegrationRemovalStatus =
+  | 'not-installed'
+  | 'removed'
+  | 'unsupported';
+
 interface TowerTool {
   Identifier?: string;
   [key: string]: unknown;
@@ -62,6 +67,19 @@ export async function synchronizeTowerIntegrationIfNeeded(
   return 'unsupported';
 }
 
+/** Removes only Delta Flow's Tower registration and launcher files. */
+export async function uninstallTowerIntegration(
+  dir?: string,
+): Promise<TowerIntegrationRemovalStatus> {
+  if (process.platform === 'darwin') {
+    return uninstallMac(dir ?? macCompareToolsDir());
+  }
+  if (process.platform === 'win32') {
+    return uninstallWindows(dir ?? winCompareToolsDir());
+  }
+  return 'unsupported';
+}
+
 // --- macOS: a launch script plus a CompareTools.plist entry ---
 
 async function installMac(extensionPath: string, dir: string): Promise<string> {
@@ -85,6 +103,26 @@ async function synchronizeMac(extensionPath: string, dir: string): Promise<Tower
   }
   await installMac(extensionPath, dir);
   return 'synchronized';
+}
+
+async function uninstallMac(dir: string): Promise<TowerIntegrationRemovalStatus> {
+  const plistPath = path.join(dir, 'CompareTools.plist');
+  const launcher = path.join(dir, 'delta-flow.sh');
+  let removed = false;
+
+  if (await exists(plistPath)) {
+    const tools = await readPlist(plistPath);
+    const remaining = tools.filter((tool) => tool.Identifier !== TOWER_ENTRY.Identifier);
+    if (remaining.length !== tools.length) {
+      await writePlist(plistPath, remaining);
+      removed = true;
+    }
+  }
+  if (await exists(launcher)) {
+    await fs.rm(launcher, { force: true });
+    removed = true;
+  }
+  return removed ? 'removed' : 'not-installed';
 }
 
 function macCompareToolsDir(): string {
@@ -140,6 +178,16 @@ async function synchronizeWindows(extensionPath: string, dir: string): Promise<T
   }
   await installWindows(extensionPath, dir);
   return 'synchronized';
+}
+
+async function uninstallWindows(dir: string): Promise<TowerIntegrationRemovalStatus> {
+  const targets = [
+    path.join(dir, 'delta-flow.ps1'),
+    path.join(dir, 'delta-flow.json'),
+  ];
+  const installed = (await Promise.all(targets.map(exists))).some(Boolean);
+  await Promise.all(targets.map((target) => fs.rm(target, { force: true })));
+  return installed ? 'removed' : 'not-installed';
 }
 
 function winCompareToolsDir(): string {

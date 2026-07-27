@@ -32,6 +32,11 @@ extension version. This supports both upgrades and extension rollbacks while
 keeping the launcher/runtime contract compatible. It does not install the
 integration automatically if you have never run the install command.
 
+When Delta Flow is uninstalled from VS Code, its uninstall lifecycle hook
+removes the Tower launcher and registration while leaving other custom diff
+tools untouched. You can remove it separately at any time with **Delta Flow:
+Uninstall Tower Integration**.
+
 ## How it works
 
 Tower invokes the tool with the same contract as `git difftool --dir-diff`: it

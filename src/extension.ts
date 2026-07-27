@@ -11,6 +11,7 @@ import {
   installTowerIntegration,
   synchronizeTowerIntegrationIfNeeded,
   TOWER_INTEGRATION_VERSION,
+  uninstallTowerIntegration,
 } from './towerSetup';
 import { diffWorkingTree } from './workingTree';
 
@@ -19,6 +20,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Available in every window so users can run them from a normal VS Code session.
   context.subscriptions.push(
     vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)),
+    vscode.commands.registerCommand('deltaFlow.uninstallTowerIntegration', () => uninstallTower()),
     vscode.commands.registerCommand('deltaFlow.diffWorkingTree', () => diffWorkingTree(context.extensionPath)),
     vscode.commands.registerCommand('deltaFlow.diffPullRequest', () => diffPullRequest(context.extensionPath)));
   const session = readSession();
@@ -114,6 +116,27 @@ async function installTower(context: vscode.ExtensionContext): Promise<void> {
   } catch (err) {
     void vscode.window.showErrorMessage(
       `Could not install Tower integration: ${(err as Error).message}`);
+  }
+}
+
+async function uninstallTower(): Promise<void> {
+  const uninstall = 'Uninstall';
+  const selected = await vscode.window.showWarningMessage(
+    'Remove Delta Flow from Tower’s configured diff tools?',
+    { modal: true },
+    uninstall);
+  if (selected !== uninstall) {
+    return;
+  }
+  try {
+    const status = await uninstallTowerIntegration();
+    const message = status === 'removed'
+      ? 'Tower integration removed. Restart Tower to refresh its diff-tool list.'
+      : 'Delta Flow: no Tower integration was installed.';
+    void vscode.window.showInformationMessage(message);
+  } catch (err) {
+    void vscode.window.showErrorMessage(
+      `Could not remove Tower integration: ${(err as Error).message}`);
   }
 }
 

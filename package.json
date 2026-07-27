@@ -73,6 +73,11 @@
         "category": "Delta Flow"
       },
       {
+        "command": "deltaFlow.uninstallTowerIntegration",
+        "title": "Uninstall Tower Integration",
+        "category": "Delta Flow"
+      },
+      {
         "command": "deltaFlow.diffWorkingTree",
         "title": "Diff Working Tree",
         "category": "Delta Flow"
@@ -345,6 +350,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
+    "vscode:uninstall": "node ./out/lifecycle.js",
     "package": "vsce package --allow-star-activation"
   },
   "devDependencies": {

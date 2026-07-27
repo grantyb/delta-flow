@@ -47,3 +47,7 @@ restart Tower and choose **Delta Flow** in **Settings > Git Config**.
 
 Tower can then open any commit, branch comparison, or working-tree changeset
 directly in Delta Flow.
+
+Uninstalling the extension also removes its Tower integration after VS Code
+restarts. To remove only the integration, run **Delta Flow: Uninstall Tower
+Integration**.
