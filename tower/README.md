@@ -26,7 +26,8 @@ so most people never touch either by hand.
    Because the tool supports changesets, the "Perform Directory Diff" checkbox is
    not needed.
 
-The installed launcher carries an integration version marker. On later VS Code
+The installed launcher carries an integration version marker stamped from the
+extension's `package.json` version during the build. On later VS Code
 startups, Delta Flow synchronizes an existing integration to the active
 extension version. This supports both upgrades and extension rollbacks while
 keeping the launcher/runtime contract compatible. It does not install the

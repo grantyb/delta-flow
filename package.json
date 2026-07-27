@@ -347,8 +347,9 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "sync-integration-version": "node ./scripts/sync-integration-version.js",
+    "compile": "npm run sync-integration-version && tsc -p ./",
+    "watch": "npm run sync-integration-version && tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
     "vscode:uninstall": "node ./out/lifecycle.js",
     "package": "vsce package --allow-star-activation"
