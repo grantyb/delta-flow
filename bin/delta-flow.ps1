@@ -124,10 +124,18 @@ if (-not $bothDirs) {
 # under a stable, per-user sessions root the user can trust once; VS Code then
 # inherits that trust for every session and suppresses the Restricted Mode
 # banner. Only the sessions\ child is meant to be trusted, keeping any siblings
-# out of scope. The Windows temp path is already per-user, so no owner guard is
-# needed here.
-$sessions = Join-Path ([System.IO.Path]::GetTempPath()) 'delta-flow\sessions'
+# out of scope. %LOCALAPPDATA% gives a readable, conventional path (not roamed,
+# unlike %APPDATA%) that the user can recognise when trusting it.
+$base = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE 'AppData\Local' }
+$sessions = Join-Path $base 'delta-flow\sessions'
 New-Item -ItemType Directory -Path $sessions -Force | Out-Null
+
+# Remove session anchors left behind by crashed or force-quit windows. The
+# 3-day floor mirrors the OS temp reaping we used to rely on.
+Get-ChildItem -LiteralPath $sessions -Directory -ErrorAction SilentlyContinue |
+  Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-3) } |
+  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
 $scratch = Join-Path $sessions ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $scratch | Out-Null
 try {

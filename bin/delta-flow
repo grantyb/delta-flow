@@ -123,8 +123,8 @@ dir_owner() {
 }
 
 # Create $1 as a private directory we own, or fail if anything else holds the
-# path. The sessions root lives at a predictable location, so on a shared /tmp
-# we must refuse a pre-existing symlink or another user's directory.
+# path. The sessions root lives at a predictable location, so we refuse a
+# pre-existing symlink or another user's directory as defence in depth.
 ensure_owned_dir() {
   local dir="$1"
   if [[ -L "$dir" ]]; then
@@ -141,17 +141,34 @@ ensure_owned_dir() {
   fi
 }
 
+# The per-user cache directory, so sessions live at a readable, conventional path
+# (rather than an opaque temp path) that the user can recognise when trusting it.
+cache_base() {
+  case "$(uname -s)" in
+    Darwin) echo "$HOME/Library/Caches" ;;
+    *) echo "${XDG_CACHE_HOME:-$HOME/.cache}" ;;
+  esac
+}
+
 # A stable per-user root the user can trust once; every session opens beneath
 # it, so VS Code's inherited trust suppresses the Restricted Mode banner. Only
 # the sessions/ child is meant to be trusted, keeping any siblings out of scope.
 sessions_root() {
-  local root sessions
-  root="${TMPDIR:-/tmp}"
-  root="${root%/}/delta-flow"
+  local base root sessions
+  base="$(cache_base)"
+  mkdir -p "$base"
+  root="$base/delta-flow"
   sessions="$root/sessions"
   ensure_owned_dir "$root" || return 1
   ensure_owned_dir "$sessions" || return 1
   echo "$sessions"
+}
+
+# Remove session anchors left behind by crashed or force-quit windows. The
+# 3-day floor mirrors the OS temp reaping we used to rely on and stays clear of
+# any window a user has legitimately left open.
+sweep_stale_sessions() {
+  find "$1" -mindepth 1 -maxdepth 1 -type d -mtime +3 -exec rm -rf {} + 2>/dev/null || true
 }
 
 # Without --dir-diff, git invokes us once per file. Fall back to a plain diff so
@@ -165,6 +182,7 @@ open_dir_diff() {
   # .code-workspace file avoids VS Code's automatic "(Workspace)" suffix. It
   # lives under the stable, per-user sessions root so trust is inherited.
   sessions="$(sessions_root)"
+  sweep_stale_sessions "$sessions"
   session="$(mktemp -d "$sessions/XXXXXX")"
   workspace_name="${DELTA_FLOW_WORKSPACE_NAME:-$(infer_workspace_name)}"
   # The extension supplies a filesystem-safe name; also neutralise path

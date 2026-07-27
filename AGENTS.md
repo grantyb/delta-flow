@@ -36,13 +36,17 @@ launchers git/Tower invoke with two temp trees. They open a VS Code window on a
 small anchor folder that carries the two paths via folder-scoped
 `deltaFlow.session` settings; the extension reads those and diffs the trees.
 
-The anchor folder lives under a **stable per-user root**
-(`${TMPDIR}/delta-flow/sessions/<random>/<name>`) rather than a fresh random temp
-dir. This lets the user trust `.../delta-flow/sessions` once; VS Code inherits that
-trust for every future session, suppressing the Restricted Mode banner. Only the
-`sessions/` child is meant to be trusted — keep anything else we write in temp as a
-sibling, outside that path. On a shared `/tmp` the bash launcher creates the root
-`0700` and refuses a pre-existing symlink or foreign-owned dir.
+The anchor folder lives under a **stable per-user cache root**
+(`<cache>/delta-flow/sessions/<random>/<name>`) rather than a fresh random temp
+dir. `<cache>` is `~/Library/Caches` (macOS), `%LOCALAPPDATA%` (Windows), or
+`${XDG_CACHE_HOME:-~/.cache}` (Linux) — a readable, conventional path the user can
+recognise when trusting it, chosen over an opaque temp path. This lets the user
+trust `.../delta-flow/sessions` once; VS Code inherits that trust for every future
+session, suppressing the Restricted Mode banner. Only the `sessions/` child is
+meant to be trusted — keep anything else outside that path.
+
+Because we no longer get OS temp reaping, the launchers sweep session anchors
+older than 3 days on each run.
 
 The extension already declares `capabilities.untrustedWorkspaces.supported` in
 `package.json`, so it is fully functional even before the folder is trusted; the
