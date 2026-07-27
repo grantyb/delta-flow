@@ -46,4 +46,6 @@ sibling, outside that path. On a shared `/tmp` the bash launcher creates the roo
 
 The extension already declares `capabilities.untrustedWorkspaces.supported` in
 `package.json`, so it is fully functional even before the folder is trusted; the
-banner is cosmetic.
+banner is cosmetic. On the first Restricted-Mode comparison the extension shows a
+one-time hint (`offerTrustGuidance` in `src/extension.ts`) pointing the user at the
+`sessions` root and the Workspace Trust editor.

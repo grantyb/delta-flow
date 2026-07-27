@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { DiffContentProvider, SCHEME } from './contentProvider';
 import { DiffView } from './diffView';
@@ -32,7 +33,59 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(view);
   registerItemCommands(context, view);
   registerFilterCommands(context, view);
+  void offerTrustGuidance(context);
   await run(view, session);
+}
+
+const TRUST_HINT_DISMISSED = 'deltaFlow.trustHintDismissed';
+
+/**
+ * In Restricted Mode, invite the user to trust the shared sessions root once so
+ * every future comparison opens trusted. Trusting this window alone would not
+ * help, since each comparison opens in a fresh folder beneath that root.
+ */
+async function offerTrustGuidance(context: vscode.ExtensionContext): Promise<void> {
+  if (vscode.workspace.isTrusted || context.globalState.get(TRUST_HINT_DISMISSED)) {
+    return;
+  }
+  const sessionsRoot = sessionsRootPath();
+  if (!sessionsRoot) {
+    return; // Opened outside our launcher's layout — nothing specific to suggest.
+  }
+  const manage = 'Manage Trust';
+  const dismiss = 'Don’t Show Again';
+  const choice = await vscode.window.showInformationMessage(
+    'Delta Flow opens each comparison in a temporary folder, so VS Code starts ' +
+    `in Restricted Mode. Add “${sessionsRoot}” under Trusted Folders to open every ` +
+    'future comparison trusted.',
+    manage, dismiss);
+  if (choice === manage) {
+    await openTrustEditor();
+  } else if (choice === dismiss) {
+    await context.globalState.update(TRUST_HINT_DISMISSED, true);
+  }
+}
+
+async function openTrustEditor(): Promise<void> {
+  try {
+    await vscode.commands.executeCommand('workbench.trust.manage');
+  } catch {
+    void vscode.window.showInformationMessage(
+      'Run “Workspaces: Manage Workspace Trust” from the Command Palette, then ' +
+      'add the folder under Trusted Folders.');
+  }
+}
+
+/** The `.../delta-flow/sessions` root of the current window, if it is one of ours. */
+function sessionsRootPath(): string | undefined {
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!folder) {
+    return undefined;
+  }
+  const root = path.dirname(path.dirname(folder));
+  const looksLikeOurs = path.basename(root) === 'sessions'
+    && path.basename(path.dirname(root)) === 'delta-flow';
+  return looksLikeOurs ? root : undefined;
 }
 
 async function maintainTowerIntegration(extensionPath: string): Promise<void> {
