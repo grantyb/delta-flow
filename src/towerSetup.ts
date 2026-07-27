@@ -6,6 +6,15 @@ import * as path from 'path';
 
 const run = promisify(execFile);
 
+export const TOWER_INTEGRATION_VERSION = '0.1.0';
+const VERSION_PATTERN = /DELTA_FLOW_TOWER_INTEGRATION_VERSION=([^\s]+)/;
+
+export type TowerIntegrationStatus =
+  | 'not-installed'
+  | 'current'
+  | 'synchronized'
+  | 'unsupported';
+
 interface TowerTool {
   Identifier?: string;
   [key: string]: unknown;
@@ -36,6 +45,23 @@ export async function installTowerIntegration(extensionPath: string, dir?: strin
   throw new Error('Tower integration is only available on macOS and Windows.');
 }
 
+/**
+ * Synchronizes an existing integration with this extension version. An absent
+ * integration is left alone; both upgrades and extension rollbacks are handled.
+ */
+export async function synchronizeTowerIntegrationIfNeeded(
+  extensionPath: string,
+  dir?: string,
+): Promise<TowerIntegrationStatus> {
+  if (process.platform === 'darwin') {
+    return synchronizeMac(extensionPath, dir ?? macCompareToolsDir());
+  }
+  if (process.platform === 'win32') {
+    return synchronizeWindows(extensionPath, dir ?? winCompareToolsDir());
+  }
+  return 'unsupported';
+}
+
 // --- macOS: a launch script plus a CompareTools.plist entry ---
 
 async function installMac(extensionPath: string, dir: string): Promise<string> {
@@ -43,6 +69,22 @@ async function installMac(extensionPath: string, dir: string): Promise<string> {
   await installLaunchScript(extensionPath, dir);
   await mergePlistEntry(path.join(dir, 'CompareTools.plist'));
   return dir;
+}
+
+async function synchronizeMac(extensionPath: string, dir: string): Promise<TowerIntegrationStatus> {
+  const plistPath = path.join(dir, 'CompareTools.plist');
+  const launcher = path.join(dir, 'delta-flow.sh');
+  const registered = (await readPlist(plistPath)).some(
+    (tool) => tool.Identifier === TOWER_ENTRY.Identifier);
+  if (!registered && !(await exists(launcher))) {
+    return 'not-installed';
+  }
+  const installedVersion = await installedIntegrationVersion(launcher);
+  if (installedVersion === TOWER_INTEGRATION_VERSION) {
+    return 'current';
+  }
+  await installMac(extensionPath, dir);
+  return 'synchronized';
 }
 
 function macCompareToolsDir(): string {
@@ -53,6 +95,15 @@ function macCompareToolsDir(): string {
 async function installLaunchScript(extensionPath: string, dir: string): Promise<void> {
   const source = path.join(extensionPath, 'bin', 'delta-flow');
   const dest = path.join(dir, 'delta-flow.sh');
+  try {
+    if ((await fs.lstat(dest)).isSymbolicLink()) {
+      // Do not let copyFile follow a manually installed link and overwrite its
+      // source. Replace the integration link with the versioned launcher copy.
+      await fs.unlink(dest);
+    }
+  } catch {
+    // No existing launcher.
+  }
   await fs.copyFile(source, dest);
   await fs.chmod(dest, 0o755);
 }
@@ -75,6 +126,20 @@ async function installWindows(extensionPath: string, dir: string): Promise<strin
   };
   await fs.writeFile(path.join(dir, 'delta-flow.json'), JSON.stringify(config, null, 2));
   return dir;
+}
+
+async function synchronizeWindows(extensionPath: string, dir: string): Promise<TowerIntegrationStatus> {
+  const launcher = path.join(dir, 'delta-flow.ps1');
+  const config = path.join(dir, 'delta-flow.json');
+  if (!(await exists(launcher)) && !(await exists(config))) {
+    return 'not-installed';
+  }
+  const installedVersion = await installedIntegrationVersion(launcher);
+  if (installedVersion === TOWER_INTEGRATION_VERSION) {
+    return 'current';
+  }
+  await installWindows(extensionPath, dir);
+  return 'synchronized';
 }
 
 function winCompareToolsDir(): string {
@@ -107,5 +172,24 @@ async function writePlist(plistPath: string, tools: TowerTool[]): Promise<void> 
     await run('plutil', ['-convert', 'xml1', temp, '-o', plistPath]);
   } finally {
     await fs.rm(temp, { force: true });
+  }
+}
+
+async function installedIntegrationVersion(launcher: string): Promise<string | undefined> {
+  try {
+    const source = await fs.readFile(launcher, 'utf8');
+    return source.match(VERSION_PATTERN)?.[1];
+  } catch {
+    // A missing launcher is a partial installation and should be repaired.
+    return undefined;
+  }
+}
+
+async function exists(target: string): Promise<boolean> {
+  try {
+    await fs.access(target);
+    return true;
+  } catch {
+    return false;
   }
 }

@@ -7,10 +7,15 @@ import { loadChanges } from './gitDiff';
 import { diffPullRequest } from './pullRequests';
 import { DiffSession, readSession } from './session';
 import { StatusCategory } from './statusFilter';
-import { installTowerIntegration } from './towerSetup';
+import {
+  installTowerIntegration,
+  synchronizeTowerIntegrationIfNeeded,
+  TOWER_INTEGRATION_VERSION,
+} from './towerSetup';
 import { diffWorkingTree } from './workingTree';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  void maintainTowerIntegration(context.extensionPath);
   // Available in every window so users can run them from a normal VS Code session.
   context.subscriptions.push(
     vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)),
@@ -26,6 +31,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerItemCommands(context, view);
   registerFilterCommands(context, view);
   await run(view, session);
+}
+
+async function maintainTowerIntegration(extensionPath: string): Promise<void> {
+  try {
+    const status = await synchronizeTowerIntegrationIfNeeded(extensionPath);
+    if (status === 'synchronized') {
+      void vscode.window.showInformationMessage(
+        `Delta Flow: Tower integration synchronized to version ${TOWER_INTEGRATION_VERSION}.`);
+    }
+  } catch (err) {
+    void vscode.window.showWarningMessage(
+      `Delta Flow: could not update the Tower integration — ${(err as Error).message}`);
+  }
 }
 
 function registerContentProvider(context: vscode.ExtensionContext): void {

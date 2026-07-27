@@ -26,13 +26,21 @@ so most people never touch either by hand.
    Because the tool supports changesets, the "Perform Directory Diff" checkbox is
    not needed.
 
+The installed launcher carries an integration version marker. On later VS Code
+startups, Delta Flow synchronizes an existing integration to the active
+extension version. This supports both upgrades and extension rollbacks while
+keeping the launcher/runtime contract compatible. It does not install the
+integration automatically if you have never run the install command.
+
 ## How it works
 
 Tower invokes the tool with the same contract as `git difftool --dir-diff`: it
 hands over two directory trees for the whole changeset (`$LOCAL` = old,
 `$REMOTE` = new) and calls the launcher once. The launcher opens a VS Code window
-whose workspace settings carry the two paths and blocks (via `--wait`) until you
-close it, keeping the temp trees alive.
+whose folder settings carry the two paths and blocks (via `--wait`) until you
+close it, keeping the temp trees alive. When Git's parent process exposes the
+compared revisions, the launcher resolves them to branch, tag, or remote-branch
+names for the window title; otherwise it falls back to the repository name.
 
 - **Mac** runs `bin/delta-flow` (bash) directly as the plist `LaunchScript`.
 - **Windows** has no launch-script concept, so the JSON points `ApplicationPaths`

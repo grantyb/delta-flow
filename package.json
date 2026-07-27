@@ -31,6 +31,7 @@
   "main": "./out/extension.js",
   "icon": "media/delta-flow-icon.png",
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:.delta-flow"
   ],
   "capabilities": {
