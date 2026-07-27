@@ -120,8 +120,15 @@ if (-not $bothDirs) {
 }
 
 # A named empty folder anchors the window. Using a folder rather than a
-# .code-workspace file avoids VS Code's automatic "(Workspace)" suffix.
-$scratch = Join-Path ([System.IO.Path]::GetTempPath()) ('delta-flow-' + [System.IO.Path]::GetRandomFileName())
+# .code-workspace file avoids VS Code's automatic "(Workspace)" suffix. It lives
+# under a stable, per-user sessions root the user can trust once; VS Code then
+# inherits that trust for every session and suppresses the Restricted Mode
+# banner. Only the sessions\ child is meant to be trusted, keeping any siblings
+# out of scope. The Windows temp path is already per-user, so no owner guard is
+# needed here.
+$sessions = Join-Path ([System.IO.Path]::GetTempPath()) 'delta-flow\sessions'
+New-Item -ItemType Directory -Path $sessions -Force | Out-Null
+$scratch = Join-Path $sessions ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $scratch | Out-Null
 try {
   $workspaceName = if ($env:DELTA_FLOW_WORKSPACE_NAME) {

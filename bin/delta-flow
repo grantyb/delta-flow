@@ -118,26 +118,64 @@ infer_workspace_name() {
   fi
 }
 
+dir_owner() {
+  stat -f '%u' "$1" 2>/dev/null || stat -c '%u' "$1" 2>/dev/null
+}
+
+# Create $1 as a private directory we own, or fail if anything else holds the
+# path. The sessions root lives at a predictable location, so on a shared /tmp
+# we must refuse a pre-existing symlink or another user's directory.
+ensure_owned_dir() {
+  local dir="$1"
+  if [[ -L "$dir" ]]; then
+    echo "error: $dir is a symlink; refusing to use it" >&2
+    return 1
+  elif [[ ! -e "$dir" ]]; then
+    mkdir -m 700 "$dir"
+  elif [[ ! -d "$dir" ]]; then
+    echo "error: $dir exists but is not a directory" >&2
+    return 1
+  elif [[ "$(dir_owner "$dir")" != "$(id -u)" ]]; then
+    echo "error: $dir is not owned by you; refusing to use it" >&2
+    return 1
+  fi
+}
+
+# A stable per-user root the user can trust once; every session opens beneath
+# it, so VS Code's inherited trust suppresses the Restricted Mode banner. Only
+# the sessions/ child is meant to be trusted, keeping any siblings out of scope.
+sessions_root() {
+  local root sessions
+  root="${TMPDIR:-/tmp}"
+  root="${root%/}/delta-flow"
+  sessions="$root/sessions"
+  ensure_owned_dir "$root" || return 1
+  ensure_owned_dir "$sessions" || return 1
+  echo "$sessions"
+}
+
 # Without --dir-diff, git invokes us once per file. Fall back to a plain diff so
 # this tool is safe to set as the global diff.tool.
 open_dir_diff() {
-  local left right scratch workdir settings workspace_name
+  local left right sessions session workdir settings workspace_name
   left="$(cd "$1" && pwd)"
   right="$(cd "$2" && pwd)"
 
   # A named empty folder anchors the window. Using a folder rather than a
-  # .code-workspace file avoids VS Code's automatic "(Workspace)" suffix.
-  scratch="$(mktemp -d "${TMPDIR:-/tmp}/delta-flow.XXXXXX")"
+  # .code-workspace file avoids VS Code's automatic "(Workspace)" suffix. It
+  # lives under the stable, per-user sessions root so trust is inherited.
+  sessions="$(sessions_root)"
+  session="$(mktemp -d "$sessions/XXXXXX")"
   workspace_name="${DELTA_FLOW_WORKSPACE_NAME:-$(infer_workspace_name)}"
   # The extension supplies a filesystem-safe name; also neutralise path
   # separators in case this launcher is called directly.
   workspace_name="${workspace_name//\//-}"
   workspace_name="${workspace_name//\\/-}"
-  workdir="$scratch/$workspace_name"
+  workdir="$session/$workspace_name"
   settings="$workdir/.vscode/settings.json"
   mkdir -p "$(dirname "$settings")"
-  # Expand $scratch now so cleanup works even though it is function-local.
-  trap "rm -rf '$scratch'" EXIT
+  # Expand $session now so cleanup works even though it is function-local.
+  trap "rm -rf '$session'" EXIT
 
   # Folder-scoped settings carry the temporary trees into the extension.
   cat > "$settings" <<EOF
