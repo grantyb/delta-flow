@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('node:readline/promises');
-const { spawnSync } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const { stdin, stdout } = require('node:process');
 
 const root = path.resolve(__dirname, '..');
@@ -42,11 +42,28 @@ function writeVersion(version) {
 function publish() {
   // Publishing runs vscode:prepublish -> compile, which regenerates the Tower
   // integration version markers from the new package.json version.
-  const result = spawnSync('npx', ['vsce', 'publish', '--allow-star-activation'],
-    { cwd: root, stdio: 'inherit' });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  return new Promise((resolve, reject) => {
+    const child = spawn('npx', ['vsce', 'publish', '--allow-star-activation'],
+      { cwd: root, stdio: 'inherit' });
+    let interrupted = false;
+    const interrupt = () => {
+      interrupted = true;
+      child.kill('SIGINT');
+    };
+    process.once('SIGINT', interrupt);
+    child.once('error', (error) => {
+      process.removeListener('SIGINT', interrupt);
+      reject(error);
+    });
+    child.once('exit', (code, signal) => {
+      process.removeListener('SIGINT', interrupt);
+      if (interrupted || signal || code !== 0) {
+        reject(new Error('Marketplace publish did not complete successfully'));
+      } else {
+        resolve();
+      }
+    });
+  });
 }
 
 function releaseTagName(version, date = new Date()) {
@@ -75,7 +92,7 @@ async function main() {
   }
   writeVersion(version);
   console.log(`package.json version set to ${version}`);
-  publish();
+  await publish();
   tagRelease(version);
 }
 
