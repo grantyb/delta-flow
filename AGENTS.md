@@ -46,7 +46,11 @@ session, suppressing the Restricted Mode banner. Only the `sessions/` child is
 meant to be trusted — keep anything else outside that path.
 
 Because we no longer get OS temp reaping, the launchers sweep session anchors
-older than 3 days on each run.
+older than 3 days on each run. On uninstall, `src/lifecycle.ts` (the
+`vscode:uninstall` hook) removes the whole cache directory via `removeSessionCache`
+in `src/sessionStore.ts`. That cache-path logic is duplicated between
+`sessionStore.ts` and the launchers (`cache_base`/`sessions_root`) — keep them in
+sync.
 
 The extension already declares `capabilities.untrustedWorkspaces.supported` in
 `package.json`, so it is fully functional even before the folder is trusted; the
