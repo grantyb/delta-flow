@@ -40,6 +40,25 @@ base branch.
 - Keyboard navigation, path filtering, and changed-line search
 - One-command Tower integration for macOS and Windows
 
+## The Restricted Mode banner
+
+Each comparison opens in its own private working directory, so VS Code starts the
+window in [Restricted Mode](https://code.visualstudio.com/docs/editor/workspace-trust)
+and shows a banner. Delta Flow only reads the two directory snapshots and never
+runs workspace code, so diffs work the same either way — but you can silence the
+banner for good.
+
+Every comparison opens beneath a single per-user folder — `.../delta-flow/sessions`
+in your cache directory (`~/Library/Caches` on macOS, `%LOCALAPPDATA%` on Windows,
+`${XDG_CACHE_HOME:-~/.cache}` on Linux). Trust that folder once and every future
+comparison opens trusted:
+
+1. Run **Workspaces: Manage Workspace Trust** from the Command Palette (or click
+   **Manage** in the banner).
+2. Under **Trusted Folders**, add the `.../delta-flow/sessions` folder.
+
+![The VS Code Workspace Trust dialog with a folder added under Trusted Folders](media/workspace-trust-dialog.webp)
+
 ## Connect Tower
 
 Run **Delta Flow: Install Tower Integration** from the Command Palette, then
