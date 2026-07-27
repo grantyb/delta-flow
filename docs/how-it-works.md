@@ -19,13 +19,18 @@ changed file.
 `bin/delta-flow` is the launcher Git and Tower call. It:
 
 1. Resolves the two directory paths Git/Tower provided.
-2. Writes a temporary `.code-workspace` file.
-3. Stores the paths in the workspace setting `deltaFlow.session`.
+2. Creates a temporary named folder with folder-scoped VS Code settings.
+3. Stores the paths in the setting `deltaFlow.session`.
 4. Opens VS Code with `--wait` so Git keeps the temporary directories alive.
 
-The temporary workspace has a single empty folder named **Delta Flow**. That
-keeps VS Code in a normal workspace window while the extension focuses the
-Changed Files view.
+The temporary folder keeps VS Code in a normal workspace window while the
+extension focuses the Changed Files view. Pull request sessions use a
+descriptive folder name, which also becomes the window title; opening a folder
+instead of a `.code-workspace` file avoids VS Code's “(Workspace)” suffix.
+For Tower and direct `git difftool` sessions, the launcher also inspects its Git
+parent process and resolves compared revisions to branch, tag, or remote-branch
+names when possible. If Git does not expose both revisions, the repository name
+is used instead.
 
 If a GUI client cannot find the `code` command, set `DELTA_FLOW_CODE` to the
 absolute path of the VS Code CLI.

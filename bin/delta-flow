@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# DELTA_FLOW_TOWER_INTEGRATION_VERSION=0.1.0
 #
 # git difftool --dir-diff launcher for the Delta Flow VS Code extension.
 #
 # git invokes this once with the two temp trees:  delta-flow "$LOCAL" "$REMOTE"
-# We open a VS Code window whose workspace settings carry the two paths, then
+# We open a VS Code window whose folder settings carry the two paths, then
 # block (via --wait) until the user closes it, so git keeps the temp trees alive.
 #
 # Set $DELTA_FLOW_CODE to override the VS Code CLI location.
@@ -31,40 +32,128 @@ find_code() {
 
 code_bin="$(find_code)"
 
+revision_label() {
+  local repo="$1" revision="$2" ref
+  for ref in $(git -C "$repo" for-each-ref --points-at="$revision" \
+    --format='%(refname)' refs/heads refs/tags refs/remotes 2>/dev/null); do
+    case "$ref" in
+      refs/heads/*) echo "${ref#refs/heads/}"; return 0 ;;
+    esac
+  done
+  for ref in $(git -C "$repo" for-each-ref --points-at="$revision" \
+    --format='%(refname)' refs/tags refs/remotes 2>/dev/null); do
+    case "$ref" in
+      refs/tags/*) echo "${ref#refs/tags/}"; return 0 ;;
+      refs/remotes/*/HEAD) ;;
+      refs/remotes/*) echo "${ref#refs/remotes/}"; return 0 ;;
+    esac
+  done
+  git -C "$repo" rev-parse --short=8 "$revision" 2>/dev/null
+}
+
+add_revision() {
+  local repo="$1" candidate="$2" resolved
+  candidate="${candidate#\'}"
+  candidate="${candidate#\"}"
+  candidate="${candidate%\'}"
+  candidate="${candidate%\"}"
+  resolved="$(git -C "$repo" rev-parse --verify --quiet "${candidate}^{commit}" 2>/dev/null || true)"
+  if [[ -n "$resolved" && "$resolved" != "$inferred_left" && "$resolved" != "$inferred_right" ]]; then
+    if [[ -z "$inferred_left" ]]; then
+      inferred_left="$resolved"
+    elif [[ -z "$inferred_right" ]]; then
+      inferred_right="$resolved"
+    fi
+  fi
+}
+
+# Tower's public diff-tool contract only supplies two directories. Git's parent
+# process still contains the compared revisions, so resolve those to friendly
+# branch/tag names when available. This is best-effort and falls back cleanly.
+infer_workspace_name() {
+  local repo pid count command token range_left range_right root
+  repo="${GIT_WORK_TREE:-$PWD}"
+  if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
+    echo "session"
+    return
+  fi
+
+  inferred_left=""
+  inferred_right=""
+  pid="$PPID"
+  count=0
+  while [[ "$pid" =~ ^[0-9]+$ && "$pid" -gt 1 && "$count" -lt 8 && -z "$inferred_right" ]]; do
+    command="$(ps -ww -o command= -p "$pid" 2>/dev/null || true)"
+    if [[ "$command" == *difftool* && "$command" != *difftool--helper* ]]; then
+      for token in $command; do
+        if [[ "$token" == *...* ]]; then
+          range_left="${token%%...*}"
+          range_right="${token#*...}"
+          add_revision "$repo" "$range_left"
+          add_revision "$repo" "$range_right"
+        elif [[ "$token" == *..* ]]; then
+          range_left="${token%%..*}"
+          range_right="${token#*..}"
+          add_revision "$repo" "$range_left"
+          add_revision "$repo" "$range_right"
+        else
+          add_revision "$repo" "$token"
+        fi
+        [[ -n "$inferred_right" ]] && break
+      done
+    fi
+    pid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+    count=$((count + 1))
+  done
+
+  if [[ -n "$inferred_left" && -n "$inferred_right" ]]; then
+    echo "$(revision_label "$repo" "$inferred_left") ↔ $(revision_label "$repo" "$inferred_right")"
+    return
+  fi
+  root="$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$root" ]]; then
+    echo "Delta Flow - ${root##*/}"
+  else
+    echo "session"
+  fi
+}
+
 # Without --dir-diff, git invokes us once per file. Fall back to a plain diff so
 # this tool is safe to set as the global diff.tool.
 open_dir_diff() {
-  local left right workdir workspace
+  local left right scratch workdir settings workspace_name
   left="$(cd "$1" && pwd)"
   right="$(cd "$2" && pwd)"
 
-  # An empty scratch folder anchors the workspace so --wait reliably holds the
-  # window open; the diff paths ride in workspace settings.
-  workdir="$(mktemp -d "${TMPDIR:-/tmp}/delta-flow.XXXXXX")"
-  workspace="$workdir/session.code-workspace"
-  # Expand $workdir now so cleanup works even though it is function-local.
-  trap "rm -rf '$workdir'" EXIT
+  # A named empty folder anchors the window. Using a folder rather than a
+  # .code-workspace file avoids VS Code's automatic "(Workspace)" suffix.
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/delta-flow.XXXXXX")"
+  workspace_name="${DELTA_FLOW_WORKSPACE_NAME:-$(infer_workspace_name)}"
+  # The extension supplies a filesystem-safe name; also neutralise path
+  # separators in case this launcher is called directly.
+  workspace_name="${workspace_name//\//-}"
+  workspace_name="${workspace_name//\\/-}"
+  workdir="$scratch/$workspace_name"
+  settings="$workdir/.vscode/settings.json"
+  mkdir -p "$(dirname "$settings")"
+  # Expand $scratch now so cleanup works even though it is function-local.
+  trap "rm -rf '$scratch'" EXIT
 
-  # A single empty named folder anchors the workspace (a zero-folder workspace
-  # shows a large "No Folder Opened" placeholder). The folder is empty and its
-  # workspace file is hidden, so the Explorer shows only our Changed Files view.
-  cat > "$workspace" <<EOF
+  # Folder-scoped settings carry the temporary trees into the extension.
+  cat > "$settings" <<EOF
 {
-  "folders": [{ "path": ".", "name": "Delta Flow" }],
-  "settings": {
-    "deltaFlow.session": { "left": "$left", "right": "$right" },
-    "workbench.startupEditor": "none",
-    "explorer.openEditors.visible": 0,
-    "workbench.editor.enablePreview": true,
-    "files.exclude": { "session.code-workspace": true, ".delta-flow": true }
-  }
+  "deltaFlow.session": { "left": "$left", "right": "$right" },
+  "workbench.startupEditor": "none",
+  "explorer.openEditors.visible": 0,
+  "workbench.editor.enablePreview": true,
+  "files.exclude": { ".vscode": true, ".delta-flow": true }
 }
 EOF
 
   # Marker that scopes the extension's activationEvents to Delta Flow windows only.
   touch "$workdir/.delta-flow"
 
-  "$code_bin" --new-window --wait "$workspace"
+  "$code_bin" --new-window --wait "$workdir"
 }
 
 if [[ -d "$1" && -d "$2" ]]; then

@@ -58,6 +58,7 @@ async function hasChanges(repo: string, env: NodeJS.ProcessEnv): Promise<boolean
 function launchDiff(extensionPath: string, repo: string, env: NodeJS.ProcessEnv, indexFile: string): void {
   const launcher = path.join(extensionPath, 'bin', 'delta-flow');
   const cmd = `"${launcher}" "$LOCAL" "$REMOTE"`;
+  env.DELTA_FLOW_WORKSPACE_NAME = 'Working Tree Changes';
   const args = ['-C', repo,
     '-c', `difftool.deltaFlowInline.cmd=${cmd}`,
     '-c', 'difftool.prompt=false',

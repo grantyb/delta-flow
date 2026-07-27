@@ -1,9 +1,11 @@
 <#
+  DELTA_FLOW_TOWER_INTEGRATION_VERSION=0.1.0
+
   Windows launcher for the Delta Flow VS Code extension.
 
   Tower (or `git difftool`) invokes it with the two temp trees:
       delta-flow.ps1 <LOCAL> <REMOTE>
-  We open a VS Code window whose workspace settings carry the two paths, then
+  We open a VS Code window whose folder settings carry the two paths, then
   block (via --wait) until the user closes it, so the caller keeps the temp
   trees alive.
 
@@ -33,6 +35,76 @@ function Find-Code {
   throw 'could not find the VS Code CLI; set DELTA_FLOW_CODE'
 }
 
+function Resolve-RevisionLabel([string]$Repo, [string]$Revision) {
+  $refs = @(& git -C $Repo for-each-ref "--points-at=$Revision" '--format=%(refname)' `
+    refs/heads refs/tags refs/remotes 2>$null)
+  foreach ($ref in $refs) {
+    if ($ref.StartsWith('refs/heads/')) { return $ref.Substring(11) }
+  }
+  foreach ($ref in $refs) {
+    if ($ref.StartsWith('refs/tags/')) { return $ref.Substring(10) }
+    if ($ref.StartsWith('refs/remotes/') -and -not $ref.EndsWith('/HEAD')) {
+      return $ref.Substring(13)
+    }
+  }
+  return (& git -C $Repo rev-parse --short=8 $Revision 2>$null)
+}
+
+function Add-Revision(
+  [string]$Repo,
+  [string]$Candidate,
+  [System.Collections.Generic.List[string]]$Revisions
+) {
+  $candidate = $Candidate.Trim(@([char]39, [char]34))
+  $resolved = & git -C $Repo rev-parse --verify --quiet "${candidate}^{commit}" 2>$null
+  if ($LASTEXITCODE -eq 0 -and $resolved -and -not $Revisions.Contains($resolved)) {
+    $Revisions.Add($resolved)
+  }
+}
+
+# Tower formally supplies only the two snapshot directories. When its Git
+# parent process contains both revisions, resolve them to friendly ref names.
+function Get-InferredWorkspaceName {
+  $repo = if ($env:GIT_WORK_TREE) { $env:GIT_WORK_TREE } else { (Get-Location).Path }
+  & git -C $repo rev-parse --git-dir 2>$null | Out-Null
+  if ($LASTEXITCODE -ne 0) { return 'session' }
+
+  $revisions = [System.Collections.Generic.List[string]]::new()
+  $ancestorId = $PID
+  for ($count = 0; $count -lt 8 -and $ancestorId -gt 1 -and $revisions.Count -lt 2; $count++) {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $ancestorId" -ErrorAction SilentlyContinue
+    if (-not $process) { break }
+    $command = $process.CommandLine
+    if ($command -like '*difftool*' -and $command -notlike '*difftool--helper*') {
+      foreach ($match in [regex]::Matches($command, "[^\s`"']+")) {
+        $token = $match.Value
+        if ($token -match '^(.+?)\.{3}(.+)$') {
+          Add-Revision $repo $Matches[1] $revisions
+          Add-Revision $repo $Matches[2] $revisions
+        } elseif ($token -match '^(.+?)\.{2}(.+)$') {
+          Add-Revision $repo $Matches[1] $revisions
+          Add-Revision $repo $Matches[2] $revisions
+        } else {
+          Add-Revision $repo $token $revisions
+        }
+        if ($revisions.Count -ge 2) { break }
+      }
+    }
+    $ancestorId = $process.ParentProcessId
+  }
+
+  if ($revisions.Count -ge 2) {
+    $left = Resolve-RevisionLabel $repo $revisions[0]
+    $right = Resolve-RevisionLabel $repo $revisions[1]
+    return "$left ↔ $right"
+  }
+  $root = & git -C $repo rev-parse --show-toplevel 2>$null
+  if ($LASTEXITCODE -eq 0 -and $root) {
+    return 'Delta Flow - ' + (Split-Path $root -Leaf)
+  }
+  return 'session'
+}
+
 $code = Find-Code
 $localFull = (Resolve-Path -LiteralPath $Local).Path
 $remoteFull = (Resolve-Path -LiteralPath $Remote).Path
@@ -47,29 +119,37 @@ if (-not $bothDirs) {
   exit $LASTEXITCODE
 }
 
-# An empty scratch folder anchors the workspace so --wait reliably holds the
-# window open; the diff paths ride in the workspace settings.
-$workdir = Join-Path ([System.IO.Path]::GetTempPath()) ('delta-flow-' + [System.IO.Path]::GetRandomFileName())
-New-Item -ItemType Directory -Path $workdir | Out-Null
+# A named empty folder anchors the window. Using a folder rather than a
+# .code-workspace file avoids VS Code's automatic "(Workspace)" suffix.
+$scratch = Join-Path ([System.IO.Path]::GetTempPath()) ('delta-flow-' + [System.IO.Path]::GetRandomFileName())
+New-Item -ItemType Directory -Path $scratch | Out-Null
 try {
-  $config = [ordered]@{
-    folders  = @(@{ path = '.'; name = 'Delta Flow' })
-    settings = [ordered]@{
-      'deltaFlow.session'              = [ordered]@{ left = $localFull; right = $remoteFull }
-      'workbench.startupEditor'        = 'none'
-      'explorer.openEditors.visible'   = 0
-      'workbench.editor.enablePreview' = $true
-      'files.exclude'                  = [ordered]@{ 'session.code-workspace' = $true; '.delta-flow' = $true }
-    }
+  $workspaceName = if ($env:DELTA_FLOW_WORKSPACE_NAME) {
+    $env:DELTA_FLOW_WORKSPACE_NAME
+  } else {
+    Get-InferredWorkspaceName
   }
-  $workspace = Join-Path $workdir 'session.code-workspace'
-  $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $workspace -Encoding UTF8
+  foreach ($invalid in [System.IO.Path]::GetInvalidFileNameChars()) {
+    $workspaceName = $workspaceName.Replace($invalid, '-')
+  }
+  $workdir = Join-Path $scratch $workspaceName
+  $settingsDir = Join-Path $workdir '.vscode'
+  New-Item -ItemType Directory -Path $settingsDir | Out-Null
+  $config = [ordered]@{
+    'deltaFlow.session'              = [ordered]@{ left = $localFull; right = $remoteFull }
+    'workbench.startupEditor'        = 'none'
+    'explorer.openEditors.visible'   = 0
+    'workbench.editor.enablePreview' = $true
+    'files.exclude'                  = [ordered]@{ '.vscode' = $true; '.delta-flow' = $true }
+  }
+  $settings = Join-Path $settingsDir 'settings.json'
+  $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $settings -Encoding UTF8
 
   # Marker that scopes the extension's activationEvents to Delta Flow windows only.
   New-Item -ItemType File -Path (Join-Path $workdir '.delta-flow') | Out-Null
 
-  & $code --new-window --wait $workspace
+  & $code --new-window --wait $workdir
 }
 finally {
-  Remove-Item -LiteralPath $workdir -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 }
