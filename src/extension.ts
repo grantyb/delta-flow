@@ -55,9 +55,8 @@ async function offerTrustGuidance(context: vscode.ExtensionContext): Promise<voi
   const manage = 'Manage Trust';
   const dismiss = 'Don’t Show Again';
   const choice = await vscode.window.showInformationMessage(
-    'Delta Flow opens each comparison in a temporary folder, so VS Code starts ' +
-    `in Restricted Mode. Add “${sessionsRoot}” under Trusted Folders to open every ` +
-    'future comparison trusted.',
+    'Delta Flow opens each comparison in a new private working directory, which makes VS Code start ' +
+    `in Restricted Mode. Add “${sessionsRoot}” (i.e. the 2nd ancestor of the current working directory) to your list of Trusted Folders to avoid the “Restricted Mode” banner in future.`,
     manage, dismiss);
   if (choice === manage) {
     await openTrustEditor();
