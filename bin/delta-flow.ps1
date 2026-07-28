@@ -1,5 +1,5 @@
 <#
-  DELTA_FLOW_TOWER_INTEGRATION_VERSION=0.1.1
+  DELTA_FLOW_TOWER_INTEGRATION_VERSION=1.0.0
 
   Windows launcher for the Delta Flow VS Code extension.
 

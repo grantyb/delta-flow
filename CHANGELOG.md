@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.0.0
+
+### Compare from any window
+
+- Opening the Delta Flow view in an ordinary VS Code window now shows a welcome
+  screen instead of the “no data provider registered” message.
+- Start **Diff Working Tree** or **Diff Pull Request** straight from it when the
+  folder is Git managed; a note explains when Git features do not apply.
+- Comparisons now open inside the current window, so your project stays put in
+  the Explorer rather than a separate diff window taking its place.
+- **New Comparison** in the Changed Files title bar returns to the welcome
+  screen, and each comparison cleans up after itself when it is replaced or the
+  window closes.
+
+### Compare Directories
+
+- Compare any two directories from the welcome screen — no Git repository
+  required.
+- Type absolute or relative paths, press **Tab** to complete them, or pick a
+  folder with **Browse…** (which opens at the path already entered).
+- **Compare Directories** enables once both paths resolve to readable
+  directories; a directory you cannot read explains why in a tooltip.
+- Honours each directory’s own `.gitignore`, so build output, dependencies, and
+  other ignored files stay out of the comparison.
+
 ## 0.1.1
 
 ### Review GitHub pull requests
