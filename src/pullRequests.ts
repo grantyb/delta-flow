@@ -2,10 +2,11 @@ import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
+import { createSnapshot, difftoolArgs, ShowSnapshot } from './snapshotDiff';
 
 const run = promisify(execFile);
 
-interface PullRequest {
+export interface PullRequest {
   number: number;
   title: string;
   baseRefName: string;
@@ -13,6 +14,14 @@ interface PullRequest {
   isDraft: boolean;
   author: { login: string } | null;
 }
+
+/** Classified outcome of listing open pull requests, for callers that render their own UI. */
+export type PullRequestListing =
+  | { status: 'ok'; repository: string; pullRequests: PullRequest[] }
+  | { status: 'empty'; repository: string }
+  | { status: 'no-repo' }
+  | { status: 'no-cli' }
+  | { status: 'error'; message: string };
 
 interface Repository {
   nameWithOwner: string;
@@ -25,7 +34,7 @@ interface PullRequestPick extends vscode.QuickPickItem {
 type PullRequestGrouping = 'none' | 'author' | 'draftStatus' | 'baseBranch';
 
 /** Lists the repository's open pull requests and opens the selected comparison. */
-export async function diffPullRequest(extensionPath: string): Promise<void> {
+export async function diffPullRequest(extensionPath: string, show: ShowSnapshot): Promise<void> {
   const repo = await repoRoot();
   if (!repo) {
     void vscode.window.showErrorMessage('Delta Flow: open a folder that is a Git repository first.');
@@ -57,8 +66,49 @@ export async function diffPullRequest(extensionPath: string): Promise<void> {
       return;
     }
 
+    await openPullRequest(extensionPath, selected.pullRequest, show);
+  } catch (err) {
+    if (isMissingGitHubCli(err)) {
+      await showMissingGitHubCli();
+      return;
+    }
+    void vscode.window.showErrorMessage(
+      `Delta Flow: could not open a pull request — ${errorMessage(err)}`);
+  }
+}
+
+/** Lists open pull requests, classifying failures so the welcome view can render them inline. */
+export async function listOpenPullRequests(): Promise<PullRequestListing> {
+  const repo = await repoRoot();
+  if (!repo) {
+    return { status: 'no-repo' };
+  }
+  try {
+    const repository = await githubRepository(repo);
+    const pullRequests = await listPullRequests(repo);
+    return pullRequests.length === 0
+      ? { status: 'empty', repository: repository.nameWithOwner }
+      : { status: 'ok', repository: repository.nameWithOwner, pullRequests };
+  } catch (err) {
+    return isMissingGitHubCli(err) ? { status: 'no-cli' } : { status: 'error', message: errorMessage(err) };
+  }
+}
+
+/** Opens the comparison for one pull request, reporting problems as toasts. */
+export async function openPullRequest(
+  extensionPath: string,
+  pullRequest: PullRequest,
+  show: ShowSnapshot,
+): Promise<void> {
+  const repo = await repoRoot();
+  if (!repo) {
+    void vscode.window.showErrorMessage('Delta Flow: open a folder that is a Git repository first.');
+    return;
+  }
+  try {
+    const repository = await githubRepository(repo);
     const remote = await githubRemote(repo, repository.nameWithOwner);
-    await launchPullRequestDiff(extensionPath, repo, remote, selected.pullRequest);
+    await launchPullRequestDiff(extensionPath, repo, remote, pullRequest, show);
   } catch (err) {
     if (isMissingGitHubCli(err)) {
       await showMissingGitHubCli();
@@ -188,13 +238,16 @@ function repositoryName(remoteUrl: string): string | undefined {
 
 /**
  * Fetches GitHub's base branch and synthetic PR head without checking either
- * out. Unique hidden refs keep concurrent comparisons isolated.
+ * out, opens the comparison in place of the current window, then drops the
+ * hidden refs once the trees are snapshotted. Unique refs keep concurrent
+ * comparisons isolated.
  */
 async function launchPullRequestDiff(
   extensionPath: string,
   repo: string,
   remote: string,
   pullRequest: PullRequest,
+  show: ShowSnapshot,
 ): Promise<void> {
   const nonce = `${process.pid}-${Date.now()}`;
   const refRoot = `refs/delta-flow/pr-${pullRequest.number}-${nonce}`;
@@ -206,31 +259,13 @@ async function launchPullRequestDiff(
       `+refs/heads/${pullRequest.baseRefName}:${baseRef}`,
       `+refs/pull/${pullRequest.number}/head:${headRef}`,
     ]);
+    const args = difftoolArgs(extensionPath, repo, [`${baseRef}...${headRef}`]);
+    const env = { ...process.env, DELTA_FLOW_WORKSPACE_NAME: pullRequestWorkspaceName(pullRequest) };
+    show(await createSnapshot(args, env, () => deleteRefs(repo, baseRef, headRef)));
   } catch (err) {
     await deleteRefs(repo, baseRef, headRef);
     throw err;
   }
-
-  const launcher = path.join(extensionPath, 'bin', 'delta-flow');
-  const cmd = `"${launcher}" "$LOCAL" "$REMOTE"`;
-  const args = [
-    '-C', repo,
-    '-c', `difftool.deltaFlowInline.cmd=${cmd}`,
-    '-c', 'difftool.prompt=false',
-    'difftool', '--dir-diff', '--no-symlinks', '--no-prompt',
-    '-t', 'deltaFlowInline', `${baseRef}...${headRef}`,
-  ];
-  const env = {
-    ...process.env,
-    DELTA_FLOW_WORKSPACE_NAME: pullRequestWorkspaceName(pullRequest),
-  };
-  execFile('git', args, { env }, async (err) => {
-    await deleteRefs(repo, baseRef, headRef);
-    if (err) {
-      void vscode.window.showErrorMessage(
-        `Delta Flow: could not open the pull request diff — ${err.message}`);
-    }
-  });
 }
 
 /** A descriptive, cross-platform-safe stem for VS Code's workspace title. */

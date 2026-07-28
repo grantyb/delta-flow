@@ -1,12 +1,14 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { DiffContentProvider, SCHEME } from './contentProvider';
-import { DiffView } from './diffView';
+import { DiffController } from './diffController';
 import { openExternalEntry } from './diffCommand';
+import { checkDirectory, completeDirectory, isGitRepository, pickDirectory } from './directoryCompare';
 import { TreeNode } from './fileTree';
-import { loadChanges } from './gitDiff';
-import { diffPullRequest } from './pullRequests';
-import { DiffSession, readSession } from './session';
+import { diffPullRequest, listOpenPullRequests, openPullRequest } from './pullRequests';
+import { readSession } from './session';
+import { ShowSnapshot } from './snapshotDiff';
+import { WelcomeActions, WelcomePanel } from './welcomePanel';
 import { StatusCategory } from './statusFilter';
 import {
   installTowerIntegration,
@@ -18,23 +20,33 @@ import { diffWorkingTree } from './workingTree';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   void maintainTowerIntegration(context.extensionPath);
+  const controller = new DiffController(context.extensionUri);
+  context.subscriptions.push(controller);
+  const show: ShowSnapshot = (snapshot) => void controller.show(snapshot.session, { ownedDir: snapshot.dir });
+
   // Available in every window so users can run them from a normal VS Code session.
   context.subscriptions.push(
     vscode.commands.registerCommand('deltaFlow.installTowerIntegration', () => installTower(context)),
     vscode.commands.registerCommand('deltaFlow.uninstallTowerIntegration', () => uninstallTower()),
-    vscode.commands.registerCommand('deltaFlow.diffWorkingTree', () => diffWorkingTree(context.extensionPath)),
-    vscode.commands.registerCommand('deltaFlow.diffPullRequest', () => diffPullRequest(context.extensionPath)));
-  const session = readSession();
-  if (!session) {
-    return; // Not a diff window — stay dormant.
-  }
+    vscode.commands.registerCommand('deltaFlow.diffWorkingTree', () => diffWorkingTree(context.extensionPath, show)),
+    vscode.commands.registerCommand('deltaFlow.diffPullRequest', () => diffPullRequest(context.extensionPath, show)));
   registerContentProvider(context);
-  const view = new DiffView(session, context.extensionUri);
-  context.subscriptions.push(view);
-  registerItemCommands(context, view);
-  registerFilterCommands(context, view);
-  void offerTrustGuidance(context);
-  await run(view, session);
+  registerItemCommands(context, controller);
+  registerFilterCommands(context, controller);
+  // Registered in every window so "New Comparison" can always return to it.
+  registerWelcome(context, show, controller);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('deltaFlow.newComparison', () => controller.returnToWelcome()));
+
+  const session = readSession();
+  if (session) {
+    // Opened directly on a launcher session folder (Tower or git difftool). The
+    // launcher's --wait owns that session's cleanup, so the controller does not.
+    void offerTrustGuidance(context);
+    await controller.show(session);
+  } else {
+    await vscode.commands.executeCommand('setContext', 'deltaFlow.hasSession', false);
+  }
 }
 
 const TRUST_HINT_DISMISSED = 'deltaFlow.trustHintDismissed';
@@ -100,18 +112,46 @@ async function maintainTowerIntegration(extensionPath: string): Promise<void> {
   }
 }
 
+/** Wire the empty-window sidebar to the working-tree, pull-request, and directory comparisons. */
+function registerWelcome(context: vscode.ExtensionContext, show: ShowSnapshot, controller: DiffController): void {
+  const actions: WelcomeActions = {
+    isGitRepository: () => isGitRepository(),
+    diffWorkingTree: () => void diffWorkingTree(context.extensionPath, show),
+    loadPullRequests: () => listOpenPullRequests(),
+    diffPullRequest: (pullRequest) => void openPullRequest(context.extensionPath, pullRequest, show),
+    pickDirectory: (current) => pickDirectory(current),
+    checkDirectory: (input) => checkDirectory(input),
+    completeDirectory: (input) => completeDirectory(input),
+    compareDirectories: (left, right) => void compareDirectories(controller, left, right),
+  };
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider('deltaFlow.welcome',
+      new WelcomePanel(context.extensionUri, actions),
+      { webviewOptions: { retainContextWhenHidden: true } }));
+}
+
+/** Show a read-only diff of two real directories in the current window. */
+async function compareDirectories(controller: DiffController, leftInput: string, rightInput: string): Promise<void> {
+  const [left, right] = await Promise.all([checkDirectory(leftInput), checkDirectory(rightInput)]);
+  if (!left.path || !right.path) {
+    void vscode.window.showErrorMessage('Delta Flow: choose two existing directories to compare.');
+    return;
+  }
+  await controller.show({ left: left.path, right: right.path }, { respectGitignore: true });
+}
+
 function registerContentProvider(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(SCHEME, new DiffContentProvider()));
 }
 
-function registerItemCommands(context: vscode.ExtensionContext, view: DiffView): void {
+function registerItemCommands(context: vscode.ExtensionContext, controller: DiffController): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('deltaFlow.activate', (node?: TreeNode) => view.activate(node)),
+    vscode.commands.registerCommand('deltaFlow.activate', (node?: TreeNode) => controller.current?.activate(node)),
     vscode.commands.registerCommand('deltaFlow.openExternal', (node: TreeNode) =>
       node?.entry ? openExternalEntry(node.entry) : undefined),
     vscode.commands.registerCommand('deltaFlow.revealCounterpart', (node?: TreeNode) =>
-      view.revealCounterpart(node)));
+      controller.current?.revealCounterpart(node)));
 }
 
 /** [command-name suffix, status category] for the four title-bar status toggles. */
@@ -119,44 +159,29 @@ const STATUS_TOGGLES: [string, StatusCategory][] = [
   ['Added', 'A'], ['Modified', 'M'], ['Deleted', 'D'], ['Renamed', 'RC'],
 ];
 
-function registerStatusToggles(context: vscode.ExtensionContext, view: DiffView): void {
+function registerStatusToggles(context: vscode.ExtensionContext, controller: DiffController): void {
   for (const [name, category] of STATUS_TOGGLES) {
-    const toggle = (): void => view.toggleStatus(category);
+    const toggle = (): void => { controller.current?.toggleStatus(category); };
     context.subscriptions.push(
       vscode.commands.registerCommand(`deltaFlow.hide${name}`, toggle),
       vscode.commands.registerCommand(`deltaFlow.show${name}`, toggle));
   }
 }
 
-function registerFilterCommands(context: vscode.ExtensionContext, view: DiffView): void {
-  registerStatusToggles(context, view);
+function registerFilterCommands(context: vscode.ExtensionContext, controller: DiffController): void {
+  registerStatusToggles(context, controller);
+  const view = (): DiffController['current'] => controller.current;
   context.subscriptions.push(
-    vscode.commands.registerCommand('deltaFlow.focusPathFilter', () => view.focusFilter('path')),
-    vscode.commands.registerCommand('deltaFlow.focusSearch', () => view.focusFilter('search')),
-    vscode.commands.registerCommand('deltaFlow.collapseAll', () => view.collapseAll()),
-    vscode.commands.registerCommand('deltaFlow.expandAll', () => view.expandAll()),
-    vscode.commands.registerCommand('deltaFlow.next', () => view.selectNext()),
-    vscode.commands.registerCommand('deltaFlow.previous', () => view.selectPrevious()),
-    vscode.commands.registerCommand('deltaFlow.collapseOrParent', () => view.collapseOrParent()),
-    vscode.commands.registerCommand('deltaFlow.expandOrChild', () => view.expandOrChild()),
-    vscode.commands.registerCommand('deltaFlow.collapseSubtree', (node?: TreeNode) => view.collapseSubtree(node)),
-    vscode.commands.registerCommand('deltaFlow.expandSubtree', (node?: TreeNode) => view.expandSubtree(node)));
-}
-
-async function run(view: DiffView, session: DiffSession): Promise<void> {
-  await focusView();
-  const changes = await loadChanges(session);
-  view.populate(changes);
-  await focusView(); // Re-assert in case the startup layout restore stole focus.
-}
-
-/** Reveal Delta Flow so it's what you land on, not the Explorer. */
-async function focusView(): Promise<void> {
-  try {
-    await vscode.commands.executeCommand('deltaFlow.changes.focus');
-  } catch {
-    // The view may not be ready during very early startup; a later call wins.
-  }
+    vscode.commands.registerCommand('deltaFlow.focusPathFilter', () => view()?.focusFilter('path')),
+    vscode.commands.registerCommand('deltaFlow.focusSearch', () => view()?.focusFilter('search')),
+    vscode.commands.registerCommand('deltaFlow.collapseAll', () => view()?.collapseAll()),
+    vscode.commands.registerCommand('deltaFlow.expandAll', () => view()?.expandAll()),
+    vscode.commands.registerCommand('deltaFlow.next', () => view()?.selectNext()),
+    vscode.commands.registerCommand('deltaFlow.previous', () => view()?.selectPrevious()),
+    vscode.commands.registerCommand('deltaFlow.collapseOrParent', () => view()?.collapseOrParent()),
+    vscode.commands.registerCommand('deltaFlow.expandOrChild', () => view()?.expandOrChild()),
+    vscode.commands.registerCommand('deltaFlow.collapseSubtree', (node?: TreeNode) => view()?.collapseSubtree(node)),
+    vscode.commands.registerCommand('deltaFlow.expandSubtree', (node?: TreeNode) => view()?.expandSubtree(node)));
 }
 
 async function installTower(context: vscode.ExtensionContext): Promise<void> {
@@ -193,5 +218,6 @@ async function uninstallTower(): Promise<void> {
 }
 
 export function deactivate(): void {
-  // Nothing to clean up; the launcher removes the temp workspace.
+  // The DiffController is a subscription; disposing it removes any snapshot it
+  // owns (via a detached process, so window teardown is never held up).
 }

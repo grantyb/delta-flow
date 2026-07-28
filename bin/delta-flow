@@ -30,8 +30,6 @@ find_code() {
   return 1
 }
 
-code_bin="$(find_code)"
-
 revision_label() {
   local repo="$1" revision="$2" ref
   for ref in $(git -C "$repo" for-each-ref --points-at="$revision" \
@@ -178,12 +176,25 @@ open_dir_diff() {
   left="$(cd "$1" && pwd)"
   right="$(cd "$2" && pwd)"
 
-  # A named empty folder anchors the window. Using a folder rather than a
-  # .code-workspace file avoids VS Code's automatic "(Workspace)" suffix. It
-  # lives under the stable, per-user sessions root so trust is inherited.
   sessions="$(sessions_root)"
   sweep_stale_sessions "$sessions"
   session="$(mktemp -d "$sessions/XXXXXX")"
+
+  # Snapshot mode: the extension renders the comparison inside its own window,
+  # so it only needs the two trees to outlive git's temporaries (freed the
+  # moment this launcher returns). Copy them in, keep the session — the
+  # extension removes it when the comparison closes — and report the folder.
+  # No VS Code window is launched.
+  if [[ -n "${DELTA_FLOW_SNAPSHOT_ONLY:-}" ]]; then
+    cp -R "$left" "$session/left"
+    cp -R "$right" "$session/right"
+    printf 'DELTA_FLOW_SESSION_DIR=%s\n' "$session"
+    return
+  fi
+
+  # A named empty folder anchors the window. Using a folder rather than a
+  # .code-workspace file avoids VS Code's automatic "(Workspace)" suffix. It
+  # lives under the stable, per-user sessions root so trust is inherited.
   workspace_name="${DELTA_FLOW_WORKSPACE_NAME:-$(infer_workspace_name)}"
   # The extension supplies a filesystem-safe name; also neutralise path
   # separators in case this launcher is called directly.
@@ -209,11 +220,13 @@ EOF
   # Marker that scopes the extension's activationEvents to Delta Flow windows only.
   touch "$workdir/.delta-flow"
 
+  code_bin="$(find_code)"
   "$code_bin" --new-window --wait "$workdir"
 }
 
 if [[ -d "$1" && -d "$2" ]]; then
   open_dir_diff "$1" "$2"
 else
+  code_bin="$(find_code)"
   "$code_bin" --diff --wait "$1" "$2"
 fi

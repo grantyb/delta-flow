@@ -53,16 +53,25 @@
     "views": {
       "deltaFlow": [
         {
+          "id": "deltaFlow.welcome",
+          "name": "Compare",
+          "icon": "media/delta-flow.svg",
+          "type": "webview",
+          "when": "!deltaFlow.hasSession"
+        },
+        {
           "id": "deltaFlow.filters",
           "name": "Filters",
           "icon": "media/delta-flow.svg",
           "type": "webview",
-          "visibility": "collapsed"
+          "visibility": "collapsed",
+          "when": "deltaFlow.hasSession"
         },
         {
           "id": "deltaFlow.changes",
           "name": "Changed Files",
-          "icon": "media/delta-flow.svg"
+          "icon": "media/delta-flow.svg",
+          "when": "deltaFlow.hasSession"
         }
       ]
     },
@@ -86,6 +95,12 @@
         "command": "deltaFlow.diffPullRequest",
         "title": "Diff Pull Request",
         "category": "Delta Flow"
+      },
+      {
+        "command": "deltaFlow.newComparison",
+        "title": "New Comparison",
+        "category": "Delta Flow",
+        "icon": "$(add)"
       },
       {
         "command": "deltaFlow.openExternal",
@@ -283,6 +298,11 @@
           "command": "deltaFlow.showRenamed",
           "when": "view == deltaFlow.filters && !deltaFlow.status.RC",
           "group": "navigation@4"
+        },
+        {
+          "command": "deltaFlow.newComparison",
+          "when": "view == deltaFlow.changes",
+          "group": "navigation@0"
         },
         {
           "command": "deltaFlow.collapseAll",

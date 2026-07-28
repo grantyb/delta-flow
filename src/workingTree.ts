@@ -4,12 +4,13 @@ import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { createSnapshot, difftoolArgs, ShowSnapshot } from './snapshotDiff';
 
 const run = promisify(execFile);
 
 /**
  * Opens the current repository's uncommitted changes (HEAD vs working tree,
- * including untracked non-ignored files) in a new Delta Flow window.
+ * including untracked non-ignored files) in the current window's Delta Flow view.
  *
  * A throwaway index (GIT_INDEX_FILE) is loaded from HEAD and `git add -A`'d so it
  * captures the whole working state without touching the real index; difftool
@@ -17,25 +18,26 @@ const run = promisify(execFile);
  * launcher is wired in via an inline -c config so it works regardless of the
  * user's global diff.tool.
  */
-export async function diffWorkingTree(extensionPath: string): Promise<void> {
+export async function diffWorkingTree(extensionPath: string, show: ShowSnapshot): Promise<void> {
   const repo = await repoRoot();
   if (!repo) {
     void vscode.window.showErrorMessage('Delta Flow: open a folder that is a Git repository first.');
     return;
   }
   const indexFile = path.join(os.tmpdir(), `delta-flow-index-${process.pid}-${Date.now()}`);
-  const env = { ...process.env, GIT_INDEX_FILE: indexFile };
+  const env = { ...process.env, GIT_INDEX_FILE: indexFile, DELTA_FLOW_WORKSPACE_NAME: 'Working Tree Changes' };
   try {
     await captureWorkingTree(repo, env);
     if (!(await hasChanges(repo, env))) {
       void vscode.window.showInformationMessage('Delta Flow: no working-tree changes to show.');
-      await fs.rm(indexFile, { force: true });
       return;
     }
-    launchDiff(extensionPath, repo, env, indexFile);
+    const args = difftoolArgs(extensionPath, repo, ['HEAD'], ['--cached']);
+    show(await createSnapshot(args, env, () => fs.rm(indexFile, { force: true })));
   } catch (err) {
-    await fs.rm(indexFile, { force: true });
     void vscode.window.showErrorMessage(`Delta Flow: could not open the diff — ${(err as Error).message}`);
+  } finally {
+    await fs.rm(indexFile, { force: true });
   }
 }
 
@@ -53,22 +55,6 @@ async function hasChanges(repo: string, env: NodeJS.ProcessEnv): Promise<boolean
   } catch (err) {
     return (err as { code?: number }).code === 1;
   }
-}
-
-function launchDiff(extensionPath: string, repo: string, env: NodeJS.ProcessEnv, indexFile: string): void {
-  const launcher = path.join(extensionPath, 'bin', 'delta-flow');
-  const cmd = `"${launcher}" "$LOCAL" "$REMOTE"`;
-  env.DELTA_FLOW_WORKSPACE_NAME = 'Working Tree Changes';
-  const args = ['-C', repo,
-    '-c', `difftool.deltaFlowInline.cmd=${cmd}`,
-    '-c', 'difftool.prompt=false',
-    'difftool', '--dir-diff', '--no-symlinks', '--no-prompt', '--cached', '-t', 'deltaFlowInline', 'HEAD'];
-  execFile('git', args, { env }, (err) => {
-    void fs.rm(indexFile, { force: true });
-    if (err) {
-      void vscode.window.showErrorMessage(`Delta Flow: could not open the diff — ${err.message}`);
-    }
-  });
 }
 
 /** The git repo containing the active editor, or the first workspace folder. */
