@@ -24,14 +24,23 @@
       "problemMatcher": []
     },
     {
-      "label": "Redeploy",
+      "label": "Redeploy Locally",
       "detail": "Package then install the extension locally",
       "dependsOrder": "sequence",
       "dependsOn": ["Package Extension", "Install Extension (local)"],
       "problemMatcher": [],
       "group": {
         "kind": "build",
-        "isDefault": true
+      }
+    },
+    {
+      "label": "Release",
+      "detail": "Prepare and deploy a new release",
+      "type": "npm",
+      "script": "release",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
       }
     }
   ]
