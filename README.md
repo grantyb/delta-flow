@@ -5,7 +5,7 @@ Tower.
 
 ![Delta Flow browsing a directory diff](media/delta-flow-demo.gif)
 
-[Release notes](RELEASE_NOTES.md)
+[Changelog](CHANGELOG.md)
 
 Delta Flow turns a Git directory diff into a clear, read-only file tree inside
 VS Code. It is built for the moments when a line-by-line diff is too narrow:
