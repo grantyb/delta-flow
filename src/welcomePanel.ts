@@ -194,7 +194,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
   <section id="wtForm" class="form hidden">
     <label>Working tree</label>
     <div class="btnrow">
-      <button id="workingTree" class="action hidden" type="button">Diff Working Tree</button>
+      <button id="workingTree" class="action hidden" type="button">Diff working tree</button>
       <button id="baseBranch" class="action hidden" type="button"></button>
     </div>
   </section>
@@ -205,14 +205,14 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     </div>
     <div id="prStatus" class="status">Loading pull requests…</div>
     <select id="pr" class="hidden"></select>
-    <button id="diffPr" class="action hidden" type="button" disabled>Diff Pull Request</button>
+    <button id="diffPr" class="action hidden" type="button" disabled>Diff pull request</button>
   </section>
   <section id="brForm" class="form hidden">
     <label>Compare branches</label>
     <input id="leftBranch" class="branch" type="text" list="branchOptions" placeholder="First branch — type to filter" spellcheck="false" autocomplete="off">
     <input id="rightBranch" class="branch" type="text" list="branchOptions" placeholder="Second branch — type to filter" spellcheck="false" autocomplete="off">
     <datalist id="branchOptions"></datalist>
-    <button id="compareBranchesBtn" class="action" type="button" disabled>Compare Branches</button>
+    <button id="compareBranchesBtn" class="action" type="button" disabled>Compare branches</button>
   </section>
   <div id="gitUnavailable" class="notice hidden">
     The current directory is not Git managed. Git features are unavailable.
@@ -229,7 +229,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
       <button class="browse" type="button" data-side="right" title="Choose directory…">Browse…</button>
       <div id="rightTip" class="tip hidden"></div>
     </div>
-    <button id="compareBtn" class="action" type="button" disabled>Compare Directories</button>
+    <button id="compareBtn" class="action" type="button" disabled>Compare directories</button>
   </section>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
