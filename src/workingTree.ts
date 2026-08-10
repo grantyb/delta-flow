@@ -5,19 +5,13 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { repoRoot } from './repo';
-import { createSnapshot, difftoolArgs, ShowSnapshot } from './snapshotDiff';
+import { createSnapshot, difftoolArgs, ShowSnapshot, Snapshot } from './snapshotDiff';
 
 const run = promisify(execFile);
 
 /**
  * Opens the current repository's uncommitted changes (HEAD vs working tree,
  * including untracked non-ignored files) in the current window's Delta Flow view.
- *
- * A throwaway index (GIT_INDEX_FILE) is loaded from HEAD and `git add -A`'d so it
- * captures the whole working state without touching the real index; difftool
- * --cached against it then shows every change, untracked files included. The
- * launcher is wired in via an inline -c config so it works regardless of the
- * user's global diff.tool.
  */
 export async function diffWorkingTree(extensionPath: string, show: ShowSnapshot): Promise<void> {
   const repo = await repoRoot();
@@ -25,18 +19,39 @@ export async function diffWorkingTree(extensionPath: string, show: ShowSnapshot)
     void vscode.window.showErrorMessage('Delta Flow: open a folder that is a Git repository first.');
     return;
   }
-  const indexFile = path.join(os.tmpdir(), `delta-flow-index-${process.pid}-${Date.now()}`);
-  const env = { ...process.env, GIT_INDEX_FILE: indexFile, DELTA_FLOW_WORKSPACE_NAME: 'Working Tree Changes' };
   try {
-    await captureWorkingTree(repo, env);
-    if (!(await hasChanges(repo, env))) {
+    const snapshot = await diffWorkingTreeAgainst(extensionPath, repo, 'HEAD', 'Working Tree Changes');
+    if (snapshot) {
+      show(snapshot);
+    } else {
       void vscode.window.showInformationMessage('Delta Flow: no working-tree changes to show.');
-      return;
     }
-    const args = difftoolArgs(extensionPath, repo, ['HEAD'], ['--cached']);
-    show(await createSnapshot(args, env, () => fs.rm(indexFile, { force: true })));
   } catch (err) {
     void vscode.window.showErrorMessage(`Delta Flow: could not open the diff — ${(err as Error).message}`);
+  }
+}
+
+/**
+ * Snapshots the whole working state (HEAD plus every change, including untracked
+ * files) and diffs it against `ref` — so the comparison shows the working
+ * directory as the right-hand side. Returns undefined when they are identical.
+ *
+ * A throwaway index (GIT_INDEX_FILE) is loaded from HEAD and `git add -A`'d so it
+ * captures the working state without touching the real index; `difftool --cached`
+ * against `ref` then compares that state to `ref`.
+ */
+export async function diffWorkingTreeAgainst(
+  extensionPath: string,
+  repo: string,
+  ref: string,
+  workspaceName: string,
+): Promise<Snapshot | undefined> {
+  const indexFile = path.join(os.tmpdir(), `delta-flow-index-${process.pid}-${Date.now()}`);
+  const env = { ...process.env, GIT_INDEX_FILE: indexFile, DELTA_FLOW_WORKSPACE_NAME: workspaceName };
+  try {
+    await captureWorkingTree(repo, env);
+    const args = difftoolArgs(extensionPath, repo, [ref], ['--cached']);
+    return await createSnapshot(args, env, () => fs.rm(indexFile, { force: true }));
   } finally {
     await fs.rm(indexFile, { force: true });
   }
@@ -46,14 +61,4 @@ export async function diffWorkingTree(extensionPath: string, show: ShowSnapshot)
 async function captureWorkingTree(repo: string, env: NodeJS.ProcessEnv): Promise<void> {
   await run('git', ['-C', repo, 'read-tree', 'HEAD'], { env });
   await run('git', ['-C', repo, 'add', '-A'], { env });
-}
-
-/** `git diff --cached --quiet` exits 1 when the temp index differs from HEAD. */
-async function hasChanges(repo: string, env: NodeJS.ProcessEnv): Promise<boolean> {
-  try {
-    await run('git', ['-C', repo, 'diff', '--cached', '--quiet', 'HEAD'], { env });
-    return false;
-  } catch (err) {
-    return (err as { code?: number }).code === 1;
-  }
 }

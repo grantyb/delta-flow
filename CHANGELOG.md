@@ -1,11 +1,20 @@
 # Changelog
 
-## NEXT_RELEASE_VERSION_NUMBER
+## 1.0.1
 
 ### Tower integration
 
 - Launching a comparison from Tower now opens a new window in your running
   VS Code instead of starting a second copy of the app.
+
+### Diff against the base branch
+
+- **Diff Working Tree** now appears in the welcome screen only when there are
+  uncommitted changes.
+- Beside it, **Diff vs `<base>`** compares the working directory against the
+  remote version of the base branch — the same comparison as Diff Working Tree,
+  but against the branch the current branch was checked out from (inferred from
+  the closest fork point, remembered per project) rather than the current branch.
 
 ### Compare Branches
 
@@ -22,9 +31,6 @@
   screen instead of the “no data provider registered” message.
 - Start **Diff Working Tree** or **Diff Pull Request** straight from it when the
   folder is Git managed; a note explains when Git features do not apply.
-- **Diff Working Tree** appears only when there are uncommitted changes; beside
-  it, **Diff vs `<base>`** compares the current branch with the branch it was
-  checked out from (inferred from the closest fork point, remembered per project).
 - Comparisons now open inside the current window, so your project stays put in
   the Explorer rather than a separate diff window taking its place.
 - **New Comparison** in the Changed Files title bar returns to the welcome

@@ -29,30 +29,31 @@ export function difftoolArgs(
   return ['-C', repo,
     '-c', `difftool.deltaFlowInline.cmd=${cmd}`,
     '-c', 'difftool.prompt=false',
-    'difftool', '--dir-diff', '--no-symlinks', '--no-prompt',
+    // --trust-exit-code makes a launcher failure surface as an error; without it
+    // difftool swallows the code, and a missing session folder below could not be
+    // told apart from an empty diff.
+    'difftool', '--dir-diff', '--no-symlinks', '--no-prompt', '--trust-exit-code',
     ...extra, '-t', 'deltaFlowInline', ...revisions];
 }
 
 /**
  * Runs difftool with the launcher in snapshot mode: it copies the compared
  * trees into a session folder that outlives git's temporaries and prints the
- * folder. `afterSnapshot` runs once the trees are persisted, letting callers
- * release temporary refs or index files before the comparison is shown.
+ * folder. `afterSnapshot` runs once the trees are captured, letting callers
+ * release temporary refs or index files. Returns undefined when the two sides
+ * are identical — difftool then invokes nothing, so there is no session.
  */
 export async function createSnapshot(
   args: string[],
   env: NodeJS.ProcessEnv,
   afterSnapshot?: () => Promise<void>,
-): Promise<Snapshot> {
+): Promise<Snapshot | undefined> {
   const { stdout } = await run('git', args, { env: { ...env, DELTA_FLOW_SNAPSHOT_ONLY: '1' } });
-  const dir = sessionDir(stdout);
-  if (!dir) {
-    throw new Error('the diff launcher did not report a session folder');
-  }
   if (afterSnapshot) {
     await afterSnapshot();
   }
-  return { dir, session: { left: path.join(dir, 'left'), right: path.join(dir, 'right') } };
+  const dir = sessionDir(stdout);
+  return dir ? { dir, session: { left: path.join(dir, 'left'), right: path.join(dir, 'right') } } : undefined;
 }
 
 function sessionDir(output: string): string | undefined {

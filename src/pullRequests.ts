@@ -252,7 +252,12 @@ async function launchPullRequestDiff(
     ]);
     const args = difftoolArgs(extensionPath, repo, [`${baseRef}...${headRef}`]);
     const env = { ...process.env, DELTA_FLOW_WORKSPACE_NAME: pullRequestWorkspaceName(pullRequest) };
-    show(await createSnapshot(args, env, () => deleteRefs(repo, baseRef, headRef)));
+    const snapshot = await createSnapshot(args, env, () => deleteRefs(repo, baseRef, headRef));
+    if (snapshot) {
+      show(snapshot);
+    } else {
+      void vscode.window.showInformationMessage('Delta Flow: this pull request has no changes to show.');
+    }
   } catch (err) {
     await deleteRefs(repo, baseRef, headRef);
     throw err;

@@ -3,6 +3,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { currentBranch, repoRoot } from './repo';
 import { createSnapshot, difftoolArgs, ShowSnapshot } from './snapshotDiff';
+import { diffWorkingTreeAgainst } from './workingTree';
 
 const run = promisify(execFile);
 
@@ -44,16 +45,22 @@ export async function diffBranches(
   try {
     const args = difftoolArgs(extensionPath, repo, [`${left}..${right}`]);
     const env = { ...process.env, DELTA_FLOW_WORKSPACE_NAME: `${left} ↔ ${right}` };
-    show(await createSnapshot(args, env));
+    const snapshot = await createSnapshot(args, env);
+    if (snapshot) {
+      show(snapshot);
+    } else {
+      void vscode.window.showInformationMessage(`Delta Flow: ${left} and ${right} are identical.`);
+    }
   } catch (err) {
     void vscode.window.showErrorMessage(`Delta Flow: could not open the branch diff — ${(err as Error).message}`);
   }
 }
 
 /**
- * The base branch the current branch was (most likely) checked out from. A
- * remembered choice wins; otherwise the branch whose merge-base sits closest to
- * HEAD is the best guess, and it is remembered for next time.
+ * The remote-tracking base branch the current branch was (most likely) checked
+ * out from — this is what the working tree is compared against. A remembered
+ * choice wins; otherwise the branch whose merge-base sits closest to HEAD is the
+ * best guess, mapped to its remote-tracking form and remembered for next time.
  */
 export async function resolveBaseBranch(
   repo: string,
@@ -63,16 +70,22 @@ export async function resolveBaseBranch(
   const remembered = memento.get<Record<string, string>>(REMEMBERED_BASES, {});
   const saved = remembered[current];
   if (saved && await refExists(repo, saved)) {
-    return saved;
+    return (await remoteTrackingBranch(repo, saved)) ?? saved;
   }
   const guess = await guessBaseBranch(repo, current);
-  if (guess) {
-    await memento.update(REMEMBERED_BASES, { ...remembered, [current]: guess });
+  const base = guess ? (await remoteTrackingBranch(repo, guess) ?? guess) : undefined;
+  if (base) {
+    await memento.update(REMEMBERED_BASES, { ...remembered, [current]: base });
   }
-  return guess;
+  return base;
 }
 
-/** Opens a comparison of the current branch against its base branch in place. */
+/**
+ * Compares the working tree against its base branch — the same comparison as
+ * "Diff Working Tree", but with the base branch on the left instead of HEAD, so
+ * it shows every difference (committed and not) between the working directory
+ * and where the branch was checked out from.
+ */
 export async function diffBaseBranch(
   extensionPath: string,
   memento: vscode.Memento,
@@ -86,9 +99,12 @@ export async function diffBaseBranch(
     return;
   }
   try {
-    const args = difftoolArgs(extensionPath, repo, [`${base}...HEAD`]);
-    const env = { ...process.env, DELTA_FLOW_WORKSPACE_NAME: `${base} ↔ ${current}` };
-    show(await createSnapshot(args, env));
+    const snapshot = await diffWorkingTreeAgainst(extensionPath, repo, base, `${base} ↔ ${current}`);
+    if (snapshot) {
+      show(snapshot);
+    } else {
+      void vscode.window.showInformationMessage(`Delta Flow: the working tree has no changes against ${base}.`);
+    }
   } catch (err) {
     void vscode.window.showErrorMessage(`Delta Flow: could not open the branch diff — ${(err as Error).message}`);
   }
@@ -123,6 +139,31 @@ async function baseCandidates(repo: string, current: string): Promise<string[]> 
 async function defaultBranch(repo: string): Promise<string | undefined> {
   try {
     const { stdout } = await run('git', ['-C', repo, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+    return stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The remote-tracking counterpart of a branch: itself when it is already remote
+ * tracking, else its configured upstream, else `origin/<branch>` when present.
+ * Undefined when the branch has no remote version.
+ */
+async function remoteTrackingBranch(repo: string, branch: string): Promise<string | undefined> {
+  if (await refExists(repo, `refs/remotes/${branch}`)) {
+    return branch;
+  }
+  const upstream = await upstreamOf(repo, branch);
+  if (upstream) {
+    return upstream;
+  }
+  return (await refExists(repo, `refs/remotes/origin/${branch}`)) ? `origin/${branch}` : undefined;
+}
+
+async function upstreamOf(repo: string, branch: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await run('git', ['-C', repo, 'rev-parse', '--abbrev-ref', `${branch}@{upstream}`]);
     return stdout.trim() || undefined;
   } catch {
     return undefined;
