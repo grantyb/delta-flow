@@ -19,20 +19,6 @@ export interface DirectoryStatus {
   message?: string;
 }
 
-/** True when the open folder sits inside a Git working tree. */
-export async function isGitRepository(): Promise<boolean> {
-  const cwd = workspaceRoot();
-  if (!cwd) {
-    return false;
-  }
-  try {
-    await run('git', ['-C', cwd, 'rev-parse', '--is-inside-work-tree']);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Opens a native folder picker, starting at `current`'s directory when it exists. */
 export async function pickDirectory(current: string): Promise<string | undefined> {
   const picked = await vscode.window.showOpenDialog({

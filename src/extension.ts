@@ -3,12 +3,14 @@ import * as vscode from 'vscode';
 import { DiffContentProvider, SCHEME } from './contentProvider';
 import { DiffController } from './diffController';
 import { openExternalEntry } from './diffCommand';
-import { checkDirectory, completeDirectory, isGitRepository, pickDirectory } from './directoryCompare';
+import { diffBaseBranch, hasWorkingTreeChanges, resolveBaseBranch } from './branchDiff';
+import { checkDirectory, completeDirectory, pickDirectory } from './directoryCompare';
+import { currentBranch, repoRoot } from './repo';
 import { TreeNode } from './fileTree';
 import { diffPullRequest, listOpenPullRequests, openPullRequest } from './pullRequests';
-import { readSession } from './session';
+import { DiffSession, readSession } from './session';
 import { ShowSnapshot } from './snapshotDiff';
-import { WelcomeActions, WelcomePanel } from './welcomePanel';
+import { WelcomeActions, WelcomeEnvironment, WelcomePanel } from './welcomePanel';
 import { StatusCategory } from './statusFilter';
 import {
   installTowerIntegration,
@@ -40,10 +42,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const session = readSession();
   if (session) {
-    // Opened directly on a launcher session folder (Tower or git difftool). The
-    // launcher's --wait owns that session's cleanup, so the controller does not.
+    // Opened directly on a launcher session folder (Tower or git difftool). When
+    // the launcher persisted the trees inside the session (macOS `open`, which
+    // cannot wait), this window owns their cleanup; otherwise the launcher's
+    // --wait does, so we pass no ownedDir.
     void offerTrustGuidance(context);
-    await controller.show(session);
+    await controller.show(session, { ownedDir: snapshotSessionDirectory(session) });
   } else {
     await vscode.commands.executeCommand('setContext', 'deltaFlow.hasSession', false);
   }
@@ -99,6 +103,28 @@ function sessionsRootPath(): string | undefined {
   return looksLikeOurs ? root : undefined;
 }
 
+/**
+ * The session directory this window should delete on close — only when the
+ * launcher persisted the trees inside it (they live at <session>/left and
+ * <session>/right). Windows whose trees are git's own temporaries are cleaned
+ * up by the launcher's --wait instead, so those return undefined.
+ */
+function snapshotSessionDirectory(session: DiffSession): string | undefined {
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!folder) {
+    return undefined;
+  }
+  const dir = path.dirname(folder);
+  const underSessionsRoot = path.basename(path.dirname(dir)) === 'sessions'
+    && path.basename(path.dirname(path.dirname(dir))) === 'delta-flow';
+  return underSessionsRoot && isInside(dir, session.left) && isInside(dir, session.right) ? dir : undefined;
+}
+
+function isInside(parent: string, child: string): boolean {
+  const rel = path.relative(parent, child);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
 async function maintainTowerIntegration(extensionPath: string): Promise<void> {
   try {
     const status = await synchronizeTowerIntegrationIfNeeded(extensionPath);
@@ -115,8 +141,9 @@ async function maintainTowerIntegration(extensionPath: string): Promise<void> {
 /** Wire the empty-window sidebar to the working-tree, pull-request, and directory comparisons. */
 function registerWelcome(context: vscode.ExtensionContext, show: ShowSnapshot, controller: DiffController): void {
   const actions: WelcomeActions = {
-    isGitRepository: () => isGitRepository(),
+    describeEnvironment: () => welcomeEnvironment(context),
     diffWorkingTree: () => void diffWorkingTree(context.extensionPath, show),
+    diffBaseBranch: () => void diffBaseBranch(context.extensionPath, context.workspaceState, show),
     loadPullRequests: () => listOpenPullRequests(),
     diffPullRequest: (pullRequest) => void openPullRequest(context.extensionPath, pullRequest, show),
     pickDirectory: (current) => pickDirectory(current),
@@ -128,6 +155,17 @@ function registerWelcome(context: vscode.ExtensionContext, show: ShowSnapshot, c
     vscode.window.registerWebviewViewProvider('deltaFlow.welcome',
       new WelcomePanel(context.extensionUri, actions),
       { webviewOptions: { retainContextWhenHidden: true } }));
+}
+
+/** Gather the Git state the welcome view lays itself out from. */
+async function welcomeEnvironment(context: vscode.ExtensionContext): Promise<WelcomeEnvironment> {
+  const repo = await repoRoot();
+  if (!repo) {
+    return { gitManaged: false, hasWorkingTreeChanges: false };
+  }
+  const [hasChanges, branch] = await Promise.all([hasWorkingTreeChanges(repo), currentBranch(repo)]);
+  const baseBranch = branch ? await resolveBaseBranch(repo, branch, context.workspaceState) : undefined;
+  return { gitManaged: true, hasWorkingTreeChanges: hasChanges, baseBranch };
 }
 
 /** Show a read-only diff of two real directories in the current window. */

@@ -8,6 +8,9 @@
   screen instead of the “no data provider registered” message.
 - Start **Diff Working Tree** or **Diff Pull Request** straight from it when the
   folder is Git managed; a note explains when Git features do not apply.
+- **Diff Working Tree** appears only when there are uncommitted changes; beside
+  it, **Diff vs `<base>`** compares the current branch with the branch it was
+  checked out from (inferred from the closest fork point, remembered per project).
 - Comparisons now open inside the current window, so your project stays put in
   the Explorer rather than a separate diff window taking its place.
 - **New Comparison** in the Changed Files title bar returns to the welcome
@@ -24,6 +27,11 @@
   directories; a directory you cannot read explains why in a tooltip.
 - Honours each directory’s own `.gitignore`, so build output, dependencies, and
   other ignored files stay out of the comparison.
+
+### Tower integration
+
+- Launching a comparison from Tower now opens a new window in your running
+  VS Code instead of starting a second copy of the app.
 
 ## 0.1.1
 

@@ -30,6 +30,23 @@ find_code() {
   return 1
 }
 
+# The VS Code .app bundle behind the CLI, so `open -a` can reuse the running
+# instance instead of `code` spawning a second one (a duplicate Dock icon).
+find_code_app() {
+  local cli path dir
+  cli="$(command -v "$(find_code 2>/dev/null)" 2>/dev/null)" || return 1
+  path="$cli"
+  while [[ -h "$path" ]]; do
+    dir="$(dirname "$path")"
+    path="$(readlink "$path")"
+    [[ "$path" != /* ]] && path="$dir/$path"
+  done
+  case "$path" in
+    *.app/*) printf '%s' "${path%%.app/*}.app" ;;
+    *) return 1 ;;
+  esac
+}
+
 revision_label() {
   local repo="$1" revision="$2" ref
   for ref in $(git -C "$repo" for-each-ref --points-at="$revision" \
@@ -203,10 +220,25 @@ open_dir_diff() {
   workdir="$session/$workspace_name"
   settings="$workdir/.vscode/settings.json"
   mkdir -p "$(dirname "$settings")"
-  # Expand $session now so cleanup works even though it is function-local.
-  trap "rm -rf '$session'" EXIT
 
-  # Folder-scoped settings carry the temporary trees into the extension.
+  # On macOS, `open -a` reuses the running VS Code (one Dock icon) but cannot
+  # wait, so copy the trees in and let the extension delete the session when the
+  # window closes. Elsewhere, `code --wait` holds git's temporary trees open.
+  local app=""
+  if [[ "$(uname -s)" == Darwin ]]; then
+    app="$(find_code_app || true)"
+  fi
+  if [[ -n "$app" ]]; then
+    cp -R "$left" "$session/left"
+    cp -R "$right" "$session/right"
+    left="$session/left"
+    right="$session/right"
+  else
+    # Expand $session now so cleanup works even though it is function-local.
+    trap "rm -rf '$session'" EXIT
+  fi
+
+  # Folder-scoped settings carry the trees into the extension.
   cat > "$settings" <<EOF
 {
   "deltaFlow.session": { "left": "$left", "right": "$right" },
@@ -220,6 +252,9 @@ EOF
   # Marker that scopes the extension's activationEvents to Delta Flow windows only.
   touch "$workdir/.delta-flow"
 
+  if [[ -n "$app" ]] && open -a "$app" "$workdir"; then
+    return
+  fi
   code_bin="$(find_code)"
   "$code_bin" --new-window --wait "$workdir"
 }

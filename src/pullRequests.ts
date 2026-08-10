@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import * as path from 'path';
+import { currentBranch, repoRoot } from './repo';
 import { createSnapshot, difftoolArgs, ShowSnapshot } from './snapshotDiff';
 
 const run = promisify(execFile);
@@ -50,12 +50,12 @@ export async function diffPullRequest(extensionPath: string, show: ShowSnapshot)
       return;
     }
 
-    const currentBranch = await branchName(repo);
+    const branch = await currentBranch(repo);
     const grouping = vscode.workspace
       .getConfiguration('deltaFlow')
       .get<PullRequestGrouping>('pullRequestGrouping', 'none');
     const selected = await vscode.window.showQuickPick(
-      quickPickItems(pullRequests, grouping, currentBranch),
+      quickPickItems(pullRequests, grouping, branch),
       {
         title: `Open Pull Requests · ${repository.nameWithOwner}`,
         placeHolder: 'Choose a pull request to compare',
@@ -205,15 +205,6 @@ async function listPullRequests(repo: string): Promise<PullRequest[]> {
   return JSON.parse(stdout) as PullRequest[];
 }
 
-async function branchName(repo: string): Promise<string | undefined> {
-  try {
-    const { stdout } = await run('git', ['-C', repo, 'branch', '--show-current']);
-    return stdout.trim() || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * Finds the configured Git remote for the repository selected by gh. Matching
  * the owner/name avoids accidentally fetching a similarly named fork remote.
@@ -301,28 +292,6 @@ async function deleteRefs(repo: string, ...refs: string[]): Promise<void> {
       // Best-effort cleanup; stale refs are harmless and hidden from branches.
     }
   }));
-}
-
-/** The Git repo containing the active editor, or the first workspace folder. */
-async function repoRoot(): Promise<string | undefined> {
-  const cwd = candidateDir();
-  if (!cwd) {
-    return undefined;
-  }
-  try {
-    const { stdout } = await run('git', ['-C', cwd, 'rev-parse', '--show-toplevel']);
-    return stdout.trim();
-  } catch {
-    return undefined;
-  }
-}
-
-function candidateDir(): string | undefined {
-  const active = vscode.window.activeTextEditor?.document.uri;
-  if (active?.scheme === 'file') {
-    return vscode.workspace.getWorkspaceFolder(active)?.uri.fsPath ?? path.dirname(active.fsPath);
-  }
-  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
 function errorMessage(err: unknown): string {

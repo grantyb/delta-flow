@@ -4,10 +4,19 @@ import { PullRequest, PullRequestListing } from './pullRequests';
 
 type Side = 'left' | 'right';
 
+/** What the welcome view needs to know about the open folder to lay itself out. */
+export interface WelcomeEnvironment {
+  gitManaged: boolean;
+  hasWorkingTreeChanges: boolean;
+  /** The base branch the current branch was checked out from, if one is known. */
+  baseBranch?: string;
+}
+
 /** The comparisons the welcome view can start, wired to the extension's commands. */
 export interface WelcomeActions {
-  isGitRepository(): Promise<boolean>;
+  describeEnvironment(): Promise<WelcomeEnvironment>;
   diffWorkingTree(): void;
+  diffBaseBranch(): void;
   loadPullRequests(): Promise<PullRequestListing>;
   diffPullRequest(pullRequest: PullRequest): void;
   pickDirectory(current: string): Promise<string | undefined>;
@@ -43,6 +52,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
       case 'ready': void this.initialize(); break;
       case 'reload': void this.refreshPullRequests(); break;
       case 'diffWorkingTree': this.actions.diffWorkingTree(); break;
+      case 'diffBaseBranch': this.actions.diffBaseBranch(); break;
       case 'diffPullRequest': this.openPullRequest(message.number); break;
       case 'validateDir': void this.validateDirectory(message.side!, message.value ?? ''); break;
       case 'completeDir': void this.completeDirectory(message.side!, message.value ?? ''); break;
@@ -51,11 +61,11 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     }
   }
 
-  /** Report whether Git features apply, then load pull requests if they do. */
+  /** Report the folder's Git state, then load pull requests if it is a repo. */
   private async initialize(): Promise<void> {
-    const gitManaged = await this.actions.isGitRepository();
-    this.post({ type: 'environment', gitManaged });
-    if (gitManaged) {
+    const environment = await this.actions.describeEnvironment();
+    this.post({ type: 'environment', environment });
+    if (environment.gitManaged) {
       await this.refreshPullRequests();
     }
   }
@@ -127,6 +137,8 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     select:focus { border-color: var(--vscode-focusBorder); }
     .status { margin-bottom: 6px; opacity: .8; }
     .notice { margin-bottom: 6px; opacity: .8; }
+    .btnrow { display: flex; gap: 6px; }
+    .btnrow .action { flex: 1; }
     .head { display: flex; align-items: baseline; justify-content: space-between; }
     .head label { margin-bottom: 4px; }
     .iconbtn {
@@ -163,11 +175,14 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
   </style>
 </head>
 <body>
-  <section id="wtForm" class="form git hidden">
+  <section id="wtForm" class="form hidden">
     <label>Working tree</label>
-    <button id="workingTree" class="action" type="button">Diff Working Tree</button>
+    <div class="btnrow">
+      <button id="workingTree" class="action hidden" type="button">Diff Working Tree</button>
+      <button id="baseBranch" class="action hidden" type="button"></button>
+    </div>
   </section>
-  <section id="prForm" class="form git hidden">
+  <section id="prForm" class="form hidden">
     <div class="head">
       <label for="pr">Pull request</label>
       <button id="reload" class="iconbtn" type="button" title="Refresh" aria-label="Refresh">↻</button>
@@ -204,8 +219,10 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     const compareBtn = document.getElementById('compareBtn');
     const valid = { left: false, right: false };
 
-    document.getElementById('workingTree').addEventListener('click', () =>
-      vscode.postMessage({ type: 'diffWorkingTree' }));
+    const workingTree = document.getElementById('workingTree');
+    const baseBranch = document.getElementById('baseBranch');
+    workingTree.addEventListener('click', () => vscode.postMessage({ type: 'diffWorkingTree' }));
+    baseBranch.addEventListener('click', () => vscode.postMessage({ type: 'diffBaseBranch' }));
     reload.addEventListener('click', () => vscode.postMessage({ type: 'reload' }));
     select.addEventListener('change', () => { diffPr.disabled = !select.value; });
     diffPr.addEventListener('click', () => {
@@ -255,6 +272,17 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
 
     function show(el, visible) { el.classList.toggle('hidden', !visible); }
 
+    function applyEnvironment(env) {
+      const git = env.gitManaged;
+      show(workingTree, git && env.hasWorkingTreeChanges);
+      if (git && env.baseBranch) { baseBranch.textContent = 'Diff vs ' + env.baseBranch; }
+      show(baseBranch, git && Boolean(env.baseBranch));
+      show(document.getElementById('wtForm'), git && (env.hasWorkingTreeChanges || Boolean(env.baseBranch)));
+      show(document.getElementById('prForm'), git);
+      show(document.getElementById('gitUnavailable'), !git);
+      applyDividers();
+    }
+
     function applyDividers() {
       let seenVisible = false;
       for (const form of document.querySelectorAll('.form')) {
@@ -303,11 +331,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     window.addEventListener('message', (event) => {
       const msg = event.data;
       switch (msg.type) {
-        case 'environment':
-          for (const el of document.querySelectorAll('.git')) { show(el, msg.gitManaged); }
-          show(document.getElementById('gitUnavailable'), !msg.gitManaged);
-          applyDividers();
-          break;
+        case 'environment': applyEnvironment(msg.environment); break;
         case 'loading': showLoading(); break;
         case 'pullRequests': renderPullRequests(msg.listing); break;
         case 'dirValidity': setValidity(msg.side, msg.valid, msg.message); break;
