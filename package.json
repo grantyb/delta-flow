@@ -100,7 +100,7 @@
         "command": "deltaFlow.newComparison",
         "title": "New Comparison",
         "category": "Delta Flow",
-        "icon": "$(add)"
+        "icon": "$(discard)"
       },
       {
         "command": "deltaFlow.openExternal",
