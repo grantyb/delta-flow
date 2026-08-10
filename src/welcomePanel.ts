@@ -19,6 +19,8 @@ export interface WelcomeActions {
   diffBaseBranch(): void;
   loadPullRequests(): Promise<PullRequestListing>;
   diffPullRequest(pullRequest: PullRequest): void;
+  loadBranches(): Promise<string[]>;
+  compareBranches(left: string, right: string): void;
   pickDirectory(current: string): Promise<string | undefined>;
   checkDirectory(input: string): Promise<DirectoryStatus>;
   completeDirectory(input: string): Promise<string | undefined>;
@@ -54,6 +56,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
       case 'diffWorkingTree': this.actions.diffWorkingTree(); break;
       case 'diffBaseBranch': this.actions.diffBaseBranch(); break;
       case 'diffPullRequest': this.openPullRequest(message.number); break;
+      case 'compareBranches': this.actions.compareBranches(message.left ?? '', message.right ?? ''); break;
       case 'validateDir': void this.validateDirectory(message.side!, message.value ?? ''); break;
       case 'completeDir': void this.completeDirectory(message.side!, message.value ?? ''); break;
       case 'pickDir': void this.pickDirectory(message.side!, message.value ?? ''); break;
@@ -66,8 +69,13 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     const environment = await this.actions.describeEnvironment();
     this.post({ type: 'environment', environment });
     if (environment.gitManaged) {
-      await this.refreshPullRequests();
+      await Promise.all([this.refreshPullRequests(), this.loadBranches()]);
     }
+  }
+
+  /** Fill the branch pickers once the panel is up (a cheap local Git call). */
+  private async loadBranches(): Promise<void> {
+    this.post({ type: 'branches', branches: await this.actions.loadBranches() });
   }
 
   private openPullRequest(number?: number): void {
@@ -135,6 +143,14 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
       border: 1px solid var(--vscode-dropdown-border, transparent); border-radius: 2px; outline: none;
     }
     select:focus { border-color: var(--vscode-focusBorder); }
+    input.branch {
+      width: 100%; box-sizing: border-box; padding: 3px 6px; margin-bottom: 6px;
+      color: var(--vscode-input-foreground); background: var(--vscode-input-background);
+      border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; outline: none;
+    }
+    input.branch:focus { border-color: var(--vscode-focusBorder); }
+    input.branch.invalid { border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground)); }
+    input.branch::placeholder { color: var(--vscode-input-placeholderForeground); }
     .status { margin-bottom: 6px; opacity: .8; }
     .notice { margin-bottom: 6px; opacity: .8; }
     .btnrow { display: flex; gap: 6px; }
@@ -191,6 +207,13 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
     <select id="pr" class="hidden"></select>
     <button id="diffPr" class="action hidden" type="button" disabled>Diff Pull Request</button>
   </section>
+  <section id="brForm" class="form hidden">
+    <label>Compare branches</label>
+    <input id="leftBranch" class="branch" type="text" list="branchOptions" placeholder="First branch — type to filter" spellcheck="false" autocomplete="off">
+    <input id="rightBranch" class="branch" type="text" list="branchOptions" placeholder="Second branch — type to filter" spellcheck="false" autocomplete="off">
+    <datalist id="branchOptions"></datalist>
+    <button id="compareBranchesBtn" class="action" type="button" disabled>Compare Branches</button>
+  </section>
   <div id="gitUnavailable" class="notice hidden">
     The current directory is not Git managed. Git features are unavailable.
   </div>
@@ -221,8 +244,20 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
 
     const workingTree = document.getElementById('workingTree');
     const baseBranch = document.getElementById('baseBranch');
+    const leftBranch = document.getElementById('leftBranch');
+    const rightBranch = document.getElementById('rightBranch');
+    const branchOptions = document.getElementById('branchOptions');
+    const compareBranchesBtn = document.getElementById('compareBranchesBtn');
+    let branchSet = new Set();
     workingTree.addEventListener('click', () => vscode.postMessage({ type: 'diffWorkingTree' }));
     baseBranch.addEventListener('click', () => vscode.postMessage({ type: 'diffBaseBranch' }));
+
+    for (const el of [leftBranch, rightBranch]) { el.addEventListener('input', syncBranches); }
+    compareBranchesBtn.addEventListener('click', () => {
+      if (branchesReady()) {
+        vscode.postMessage({ type: 'compareBranches', left: leftBranch.value, right: rightBranch.value });
+      }
+    });
     reload.addEventListener('click', () => vscode.postMessage({ type: 'reload' }));
     select.addEventListener('change', () => { diffPr.disabled = !select.value; });
     diffPr.addEventListener('click', () => {
@@ -272,6 +307,25 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
 
     function show(el, visible) { el.classList.toggle('hidden', !visible); }
 
+    function branchesReady() {
+      return branchSet.has(leftBranch.value) && branchSet.has(rightBranch.value)
+        && leftBranch.value !== rightBranch.value;
+    }
+
+    function syncBranches() {
+      for (const el of [leftBranch, rightBranch]) {
+        el.classList.toggle('invalid', el.value.trim() !== '' && !branchSet.has(el.value));
+      }
+      compareBranchesBtn.disabled = !branchesReady();
+    }
+
+    function renderBranches(branches) {
+      branchSet = new Set(branches);
+      branchOptions.innerHTML = '';
+      for (const branch of branches) { branchOptions.appendChild(new Option(branch, branch)); }
+      syncBranches();
+    }
+
     function applyEnvironment(env) {
       const git = env.gitManaged;
       show(workingTree, git && env.hasWorkingTreeChanges);
@@ -279,6 +333,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
       show(baseBranch, git && Boolean(env.baseBranch));
       show(document.getElementById('wtForm'), git && (env.hasWorkingTreeChanges || Boolean(env.baseBranch)));
       show(document.getElementById('prForm'), git);
+      show(document.getElementById('brForm'), git);
       show(document.getElementById('gitUnavailable'), !git);
       applyDividers();
     }
@@ -334,6 +389,7 @@ export class WelcomePanel implements vscode.WebviewViewProvider {
         case 'environment': applyEnvironment(msg.environment); break;
         case 'loading': showLoading(); break;
         case 'pullRequests': renderPullRequests(msg.listing); break;
+        case 'branches': renderBranches(msg.branches); break;
         case 'dirValidity': setValidity(msg.side, msg.valid, msg.message); break;
         case 'dirCompletion': applyValue(msg.side, msg.value); break;
         case 'dirPicked': applyValue(msg.side, msg.path); break;

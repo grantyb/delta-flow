@@ -15,6 +15,41 @@ export async function hasWorkingTreeChanges(repo: string): Promise<boolean> {
   return stdout.trim().length > 0;
 }
 
+/** The repository's local branch names, for the branch-comparison pickers. */
+export async function listBranches(): Promise<string[]> {
+  const repo = await repoRoot();
+  if (!repo) {
+    return [];
+  }
+  try {
+    const { stdout } = await run('git', ['-C', repo, 'for-each-ref', '--format=%(refname:short)', 'refs/heads']);
+    return stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** Opens a read-only comparison of two branches (left..right) in the current window. */
+export async function diffBranches(
+  extensionPath: string,
+  left: string,
+  right: string,
+  show: ShowSnapshot,
+): Promise<void> {
+  const repo = await repoRoot();
+  if (!repo || !left || !right || left === right) {
+    void vscode.window.showErrorMessage('Delta Flow: choose two different branches to compare.');
+    return;
+  }
+  try {
+    const args = difftoolArgs(extensionPath, repo, [`${left}..${right}`]);
+    const env = { ...process.env, DELTA_FLOW_WORKSPACE_NAME: `${left} ↔ ${right}` };
+    show(await createSnapshot(args, env));
+  } catch (err) {
+    void vscode.window.showErrorMessage(`Delta Flow: could not open the branch diff — ${(err as Error).message}`);
+  }
+}
+
 /**
  * The base branch the current branch was (most likely) checked out from. A
  * remembered choice wins; otherwise the branch whose merge-base sits closest to

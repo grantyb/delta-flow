@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { DiffContentProvider, SCHEME } from './contentProvider';
 import { DiffController } from './diffController';
 import { openExternalEntry } from './diffCommand';
-import { diffBaseBranch, hasWorkingTreeChanges, resolveBaseBranch } from './branchDiff';
+import { diffBaseBranch, diffBranches, hasWorkingTreeChanges, listBranches, resolveBaseBranch } from './branchDiff';
 import { checkDirectory, completeDirectory, pickDirectory } from './directoryCompare';
 import { currentBranch, repoRoot } from './repo';
 import { TreeNode } from './fileTree';
@@ -146,6 +146,8 @@ function registerWelcome(context: vscode.ExtensionContext, show: ShowSnapshot, c
     diffBaseBranch: () => void diffBaseBranch(context.extensionPath, context.workspaceState, show),
     loadPullRequests: () => listOpenPullRequests(),
     diffPullRequest: (pullRequest) => void openPullRequest(context.extensionPath, pullRequest, show),
+    loadBranches: () => listBranches(),
+    compareBranches: (left, right) => void diffBranches(context.extensionPath, left, right, show),
     pickDirectory: (current) => pickDirectory(current),
     checkDirectory: (input) => checkDirectory(input),
     completeDirectory: (input) => completeDirectory(input),

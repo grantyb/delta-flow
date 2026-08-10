@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1
+
+### Tower integration
+
+- Launching a comparison from Tower now opens a new window in your running
+  VS Code instead of starting a second copy of the app.
+
+### Compare Branches
+
+- Compare any two branches from the welcome screen: two filterable dropdowns
+  list the repository's branches and load lazily once the panel appears.
+- Type inline to filter each list; **Compare Branches** activates once two
+  distinct branches are chosen and opens their diff (`left..right`).
+
 ## 1.0.0
 
 ### Compare from any window
@@ -27,11 +41,6 @@
   directories; a directory you cannot read explains why in a tooltip.
 - Honours each directory’s own `.gitignore`, so build output, dependencies, and
   other ignored files stay out of the comparison.
-
-### Tower integration
-
-- Launching a comparison from Tower now opens a new window in your running
-  VS Code instead of starting a second copy of the app.
 
 ## 0.1.1
 
