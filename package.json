@@ -2,7 +2,7 @@
   "name": "delta-flow",
   "displayName": "Delta Flow",
   "description": "The directory diff viewer that lives where you already work: VS Code, Git, and Tower.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "grantyb",
   "license": "MIT",
   "repository": {
