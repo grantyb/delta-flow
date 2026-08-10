@@ -8,7 +8,12 @@ const { stdin, stdout } = require('node:process');
 
 const root = path.resolve(__dirname, '..');
 const packageJsonPath = path.join(root, 'package.json');
+const changelogPath = path.join(root, 'CHANGELOG.md');
 const SEMVER = /^\d+\.\d+\.\d+$/;
+
+// The placeholder heading under which unreleased changes are documented until a
+// version number is chosen. See "Changelog" in AGENTS.md.
+const NEXT_RELEASE_HEADING = '## NEXT_RELEASE_VERSION_NUMBER';
 
 function currentVersion() {
   return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')).version;
@@ -37,6 +42,19 @@ function writeVersion(version) {
     throw new Error('Could not find the "version" field in package.json');
   }
   fs.writeFileSync(packageJsonPath, after);
+}
+
+// Stamp the pending-changes heading with the chosen version, so the features
+// documented under it are attributed to this release. A no-op (with a warning)
+// when there is nothing pending under the placeholder.
+function stampChangelog(version) {
+  const before = fs.readFileSync(changelogPath, 'utf8');
+  if (!before.includes(NEXT_RELEASE_HEADING)) {
+    console.warn(`No "${NEXT_RELEASE_HEADING}" heading in CHANGELOG.md; leaving it unchanged.`);
+    return;
+  }
+  fs.writeFileSync(changelogPath, before.replace(NEXT_RELEASE_HEADING, `## ${version}`));
+  console.log(`CHANGELOG.md heading set to ${version}`);
 }
 
 function publish() {
@@ -92,6 +110,7 @@ async function main() {
   }
   writeVersion(version);
   console.log(`package.json version set to ${version}`);
+  stampChangelog(version);
   await publish();
   tagRelease(version);
 }

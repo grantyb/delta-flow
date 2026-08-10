@@ -8,9 +8,23 @@ Run `npm run release`. It prompts for the new version (defaulting to the next
 patch), writes it into `package.json`, then runs `vsce publish`. Publishing
 triggers `vscode:prepublish` → `compile`, which regenerates the integration
 version markers (see below), so a single prompt keeps everything in sync.
-After publishing succeeds, the script creates a lightweight Git tag named
+Before publishing, it rewrites the `## NEXT_RELEASE_VERSION_NUMBER` heading in
+`CHANGELOG.md` to the chosen version (see Changelog below). After publishing
+succeeds, the script creates a lightweight Git tag named
 `release/YYYY/MM/v<version>` using the local release date. A failed publish does
 not create a tag.
+
+## Changelog
+
+`CHANGELOG.md` is grouped by version, newest first. Unreleased work lives under a
+single `## NEXT_RELEASE_VERSION_NUMBER` heading at the top — a literal placeholder
+standing in for the version the work will ship under.
+
+When you add a feature and are asked to document it, put its notes under that
+`## NEXT_RELEASE_VERSION_NUMBER` heading, creating the heading (directly below
+`# Changelog`) if it is not there yet. Do **not** invent a version number:
+`npm run release` replaces the placeholder with the real version once it is
+chosen, so the pending notes are attributed to that release automatically.
 
 ## Tower integration version is generated — don't hand-edit it
 

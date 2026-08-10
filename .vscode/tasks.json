@@ -35,7 +35,7 @@
     },
     {
       "label": "Release",
-      "detail": "Prepare and deploy a new release",
+      "detail": "Prompt for a version, stamp the CHANGELOG NEXT_RELEASE heading, publish, and tag",
       "type": "npm",
       "script": "release",
       "problemMatcher": [],

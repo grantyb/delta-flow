@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.1
+## NEXT_RELEASE_VERSION_NUMBER
 
 ### Tower integration
 
