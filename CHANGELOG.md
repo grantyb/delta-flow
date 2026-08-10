@@ -1,11 +1,6 @@
 # Changelog
 
-## 1.0.1
-
-### Tower integration
-
-- Launching a comparison from Tower now opens a new window in your running
-  VS Code instead of starting a second copy of the app.
+## NEXT_RELEASE_VERSION_NUMBER
 
 ### Diff against the base branch
 
@@ -15,6 +10,13 @@
   remote version of the base branch — the same comparison as Diff Working Tree,
   but against the branch the current branch was checked out from (inferred from
   the closest fork point, remembered per project) rather than the current branch.
+
+## 1.0.1
+
+### Tower integration
+
+- Launching a comparison from Tower now opens a new window in your running
+  VS Code instead of starting a second copy of the app.
 
 ### Compare Branches
 
