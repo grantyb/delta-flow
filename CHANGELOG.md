@@ -1,5 +1,15 @@
 # Changelog
 
+## NEXT_RELEASE_VERSION_NUMBER
+
+### Tower integration
+
+- The launchers now strip git's difftool environment (`GIT_DIR`,
+  `GIT_WORK_TREE`, ...) before starting VS Code. Previously, if a comparison was
+  what first launched VS Code, every integrated terminal it opened inherited
+  those variables and `git` reported the diffed repository regardless of the
+  terminal's folder.
+
 ## 1.0.2
 
 ### Diff against the base branch

@@ -47,6 +47,18 @@ find_code_app() {
   esac
 }
 
+# git exports its repository and difftool state (GIT_DIR, GIT_WORK_TREE, ...)
+# into the tool it runs. If VS Code is not already running, the instance we
+# start here becomes the long-lived one and every integrated terminal it opens
+# would inherit those variables, pointing git at the diffed repository no matter
+# which folder the terminal is in. Launch VS Code with them stripped.
+launch_code() {
+  env -u GIT_DIR -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_INDEX_FILE \
+      -u GIT_DIFF_TOOL -u GIT_DIFFTOOL_DIRDIFF -u GIT_DIFFTOOL_TRUST_EXIT_CODE \
+      -u GIT_DIFF_PATH_COUNTER -u GIT_DIFF_PATH_TOTAL -u GIT_EXEC_PATH \
+      "$@"
+}
+
 revision_label() {
   local repo="$1" revision="$2" ref
   for ref in $(git -C "$repo" for-each-ref --points-at="$revision" \
@@ -252,16 +264,16 @@ EOF
   # Marker that scopes the extension's activationEvents to Delta Flow windows only.
   touch "$workdir/.delta-flow"
 
-  if [[ -n "$app" ]] && open -a "$app" "$workdir"; then
+  if [[ -n "$app" ]] && launch_code open -a "$app" "$workdir"; then
     return
   fi
   code_bin="$(find_code)"
-  "$code_bin" --new-window --wait "$workdir"
+  launch_code "$code_bin" --new-window --wait "$workdir"
 }
 
 if [[ -d "$1" && -d "$2" ]]; then
   open_dir_diff "$1" "$2"
 else
   code_bin="$(find_code)"
-  "$code_bin" --diff --wait "$1" "$2"
+  launch_code "$code_bin" --diff --wait "$1" "$2"
 fi

@@ -105,6 +105,30 @@ function Get-InferredWorkspaceName {
   return 'session'
 }
 
+# git exports its repository and difftool state (GIT_DIR, GIT_WORK_TREE, ...)
+# into the tool it runs. If VS Code is not already running, the instance we
+# start here becomes the long-lived one and every integrated terminal it opens
+# would inherit those variables, pointing git at the diffed repository no matter
+# which folder the terminal is in. Launch VS Code with them stripped.
+function Invoke-Code {
+  $gitVars = 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_PREFIX', 'GIT_INDEX_FILE',
+    'GIT_DIFF_TOOL', 'GIT_DIFFTOOL_DIRDIFF', 'GIT_DIFFTOOL_TRUST_EXIT_CODE',
+    'GIT_DIFF_PATH_COUNTER', 'GIT_DIFF_PATH_TOTAL', 'GIT_EXEC_PATH'
+  $saved = @{}
+  foreach ($name in $gitVars) {
+    $saved[$name] = [Environment]::GetEnvironmentVariable($name)
+    [Environment]::SetEnvironmentVariable($name, $null)
+  }
+  try {
+    & $code @args
+  }
+  finally {
+    foreach ($name in $gitVars) {
+      [Environment]::SetEnvironmentVariable($name, $saved[$name])
+    }
+  }
+}
+
 $code = Find-Code
 $localFull = (Resolve-Path -LiteralPath $Local).Path
 $remoteFull = (Resolve-Path -LiteralPath $Remote).Path
@@ -115,7 +139,7 @@ $bothDirs = (Test-Path -LiteralPath $localFull -PathType Container) -and
 # Without a directory changeset, the caller invokes us per file: fall back to a
 # plain diff so this launcher is safe to use as a generic diff tool too.
 if (-not $bothDirs) {
-  & $code --diff --wait $localFull $remoteFull
+  Invoke-Code --diff --wait $localFull $remoteFull
   exit $LASTEXITCODE
 }
 
@@ -163,7 +187,7 @@ try {
   # Marker that scopes the extension's activationEvents to Delta Flow windows only.
   New-Item -ItemType File -Path (Join-Path $workdir '.delta-flow') | Out-Null
 
-  & $code --new-window --wait $workdir
+  Invoke-Code --new-window --wait $workdir
 }
 finally {
   Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
